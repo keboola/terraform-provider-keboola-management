@@ -1,10 +1,10 @@
-variable "api_url" {
+variable "host" {
   type        = string
-  description = "URL of the Keboola Management API"
+  description = "Keboola Management API Host"
 }
 
 variable "token" {
   type        = string
-  description = "Keboola Management API token"
+  description = "Keboola Management API Token"
   sensitive   = true
 } 

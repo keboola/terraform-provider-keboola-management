@@ -5,220 +5,322 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/keboola/keboola-sdk-go/v2/pkg/keboola/management"
 )
 
-// resourceMaintainer defines a Keboola Maintainer resource.
-func resourceMaintainer() *schema.Resource {
-	return &schema.Resource{
-		Schema: map[string]*schema.Schema{
-			"id": {
-				Type:        schema.TypeString,
+// Ensure the implementation satisfies the expected interfaces
+var (
+	_ resource.Resource = &maintainerResource{}
+)
+
+// NewMaintainerResource is a helper function to simplify the provider implementation.
+func NewMaintainerResource() resource.Resource {
+	return &maintainerResource{}
+}
+
+// maintainerResource is the resource implementation.
+type maintainerResource struct {
+	client *Client
+}
+
+// maintainerResourceModel maps the resource schema data.
+type maintainerResourceModel struct {
+	ID                           types.String `tfsdk:"id"`
+	Name                         types.String `tfsdk:"name"`
+	DefaultConnectionRedshiftID  types.String `tfsdk:"default_connection_redshift_id"`
+	DefaultConnectionSnowflakeID types.String `tfsdk:"default_connection_snowflake_id"`
+	DefaultConnectionSynapseID   types.String `tfsdk:"default_connection_synapse_id"`
+	DefaultConnectionExasolID    types.String `tfsdk:"default_connection_exasol_id"`
+	DefaultConnectionTeradataID  types.String `tfsdk:"default_connection_teradata_id"`
+	DefaultFileStorageID         types.String `tfsdk:"default_file_storage_id"`
+	ZendeskURL                   types.String `tfsdk:"zendesk_url"`
+}
+
+// Metadata returns the resource type name.
+func (r *maintainerResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_maintainer"
+}
+
+// Schema defines the schema for the resource.
+func (r *maintainerResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Manages a Keboola Maintainer.",
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
 				Computed:    true,
 				Description: "Maintainer ID.",
 			},
-			"name": {
-				Type:        schema.TypeString,
+			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "Maintainer name.",
 			},
-			"default_connection_redshift_id": {
-				Type:        schema.TypeString,
+			"default_connection_redshift_id": schema.StringAttribute{
 				Optional:    true,
 				Description: "Default Redshift Connection ID.",
 			},
-			"default_connection_snowflake_id": {
-				Type:        schema.TypeString,
+			"default_connection_snowflake_id": schema.StringAttribute{
 				Optional:    true,
 				Description: "Default Snowflake Connection ID.",
 			},
-			"default_connection_synapse_id": {
-				Type:        schema.TypeString,
+			"default_connection_synapse_id": schema.StringAttribute{
 				Optional:    true,
 				Description: "Default Synapse Connection ID.",
 			},
-			"default_connection_exasol_id": {
-				Type:        schema.TypeString,
+			"default_connection_exasol_id": schema.StringAttribute{
 				Optional:    true,
 				Description: "Default Exasol Connection ID.",
 			},
-			"default_connection_teradata_id": {
-				Type:        schema.TypeString,
+			"default_connection_teradata_id": schema.StringAttribute{
 				Optional:    true,
 				Description: "Default Teradata Connection ID.",
 			},
-			"default_file_storage_id": {
-				Type:        schema.TypeString,
+			"default_file_storage_id": schema.StringAttribute{
 				Optional:    true,
 				Description: "Default File Storage ID.",
 			},
-			"zendesk_url": {
-				Type:        schema.TypeString,
+			"zendesk_url": schema.StringAttribute{
 				Optional:    true,
 				Description: "Zendesk URL.",
 			},
 		},
-		CreateContext: resourceMaintainerCreate,
-		ReadContext:   resourceMaintainerRead,
-		UpdateContext: resourceMaintainerUpdate,
-		DeleteContext: resourceMaintainerDelete,
 	}
 }
 
-// resourceMaintainerCreate creates a maintainer using the Keboola Management API.
-func resourceMaintainerCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	client := m.(*Client)
-
-	// Build the request from schema fields
-	req := client.API.MaintainersAPI.CreateAMaintainer(ctx)
-	body := management.CreateAMaintainerRequest{
-		Name: d.Get("name").(string),
+// Configure adds the provider configured client to the resource.
+func (r *maintainerResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
 	}
-	if v, ok := d.GetOk("default_connection_redshift_id"); ok {
-		val := v.(string)
+
+	client, ok := req.ProviderData.(*Client)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Configure Type",
+			fmt.Sprintf("Expected *Client, got: %T", req.ProviderData),
+		)
+		return
+	}
+
+	r.client = client
+}
+
+func (r *maintainerResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan maintainerResourceModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Build API request body
+	apiReq := r.client.API.MaintainersAPI.CreateAMaintainer(ctx)
+	body := management.CreateAMaintainerRequest{
+		Name: plan.Name.ValueString(),
+	}
+
+	if !plan.DefaultConnectionRedshiftID.IsNull() {
+		val := plan.DefaultConnectionRedshiftID.ValueString()
 		body.DefaultConnectionRedshiftId = &val
 	}
-	if v, ok := d.GetOk("default_connection_snowflake_id"); ok {
-		val := v.(string)
+	if !plan.DefaultConnectionSnowflakeID.IsNull() {
+		val := plan.DefaultConnectionSnowflakeID.ValueString()
 		body.DefaultConnectionSnowflakeId = &val
 	}
-	if v, ok := d.GetOk("default_connection_synapse_id"); ok {
-		val := v.(string)
+	if !plan.DefaultConnectionSynapseID.IsNull() {
+		val := plan.DefaultConnectionSynapseID.ValueString()
 		body.DefaultConnectionSynapseId = &val
 	}
-	if v, ok := d.GetOk("default_connection_exasol_id"); ok {
-		val := v.(string)
+	if !plan.DefaultConnectionExasolID.IsNull() {
+		val := plan.DefaultConnectionExasolID.ValueString()
 		body.DefaultConnectionExasolId = &val
 	}
-	if v, ok := d.GetOk("default_connection_teradata_id"); ok {
-		val := v.(string)
+	if !plan.DefaultConnectionTeradataID.IsNull() {
+		val := plan.DefaultConnectionTeradataID.ValueString()
 		body.DefaultConnectionTeradataId = &val
 	}
-	if v, ok := d.GetOk("default_file_storage_id"); ok {
-		val := v.(string)
+	if !plan.DefaultFileStorageID.IsNull() {
+		val := plan.DefaultFileStorageID.ValueString()
 		body.DefaultFileStorageId = &val
 	}
-	if v, ok := d.GetOk("zendesk_url"); ok {
-		val := v.(string)
+	if !plan.ZendeskURL.IsNull() {
+		val := plan.ZendeskURL.ValueString()
 		body.ZendeskUrl = &val
 	}
 
-	// Call the API
-	resp, _, err := req.CreateAMaintainerRequest(body).Execute()
+	// Create new maintainer
+	apiResp, _, err := apiReq.CreateAMaintainerRequest(body).Execute()
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError(
+			"Error creating maintainer",
+			fmt.Sprintf("Could not create maintainer: %s", err),
+		)
+		return
 	}
 
-	// Set the resource ID (API returns float32, convert to string)
-	if resp.Id == nil {
-		return diag.Errorf("API did not return maintainer ID")
+	if apiResp.Id == nil {
+		resp.Diagnostics.AddError(
+			"Error creating maintainer",
+			"API did not return maintainer ID",
+		)
+		return
 	}
-	d.SetId(fmt.Sprintf("%v", int(*resp.Id)))
 
-	return resourceMaintainerRead(ctx, d, m)
+	// Set ID in the Terraform state
+	plan.ID = types.StringValue(fmt.Sprintf("%v", int(*apiResp.Id)))
+
+	// Save data into Terraform state
+	diags = resp.State.Set(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
 }
 
-// resourceMaintainerRead reads a maintainer from the Keboola Management API.
-func resourceMaintainerRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	client := m.(*Client)
-	id, err := strconv.Atoi(d.Id())
+func (r *maintainerResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state maintainerResourceModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	id, err := strconv.Atoi(state.ID.ValueString())
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError(
+			"Error parsing maintainer ID",
+			fmt.Sprintf("Could not parse maintainer ID: %s", err),
+		)
+		return
 	}
-	resp, _, err := client.API.MaintainersAPI.RetrieveAMaintainer(ctx, int32(id)).Execute()
+
+	apiResp, _, err := r.client.API.MaintainersAPI.RetrieveAMaintainer(ctx, int32(id)).Execute()
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError(
+			"Error reading maintainer",
+			fmt.Sprintf("Could not read maintainer ID %d: %s", id, err),
+		)
+		return
 	}
-	if resp == nil || resp.Id == nil {
-		d.SetId("") // Not found
-		return nil
+
+	if apiResp == nil || apiResp.Id == nil {
+		resp.State.RemoveResource(ctx)
+		return
 	}
-	// Update state from API response
-	d.Set("name", d.Get("name")) // Name is not returned by API, keep local
-	if resp.DefaultConnectionRedshiftId != nil {
-		d.Set("default_connection_redshift_id", fmt.Sprintf("%v", int(*resp.DefaultConnectionRedshiftId)))
+
+	// Update state with API response
+	// Name is not returned by API, keep local value
+	if apiResp.DefaultConnectionRedshiftId != nil {
+		state.DefaultConnectionRedshiftID = types.StringValue(fmt.Sprintf("%v", int(*apiResp.DefaultConnectionRedshiftId)))
 	}
-	if resp.DefaultConnectionSnowflakeId != nil {
-		d.Set("default_connection_snowflake_id", fmt.Sprintf("%v", int(*resp.DefaultConnectionSnowflakeId)))
+	if apiResp.DefaultConnectionSnowflakeId != nil {
+		state.DefaultConnectionSnowflakeID = types.StringValue(fmt.Sprintf("%v", int(*apiResp.DefaultConnectionSnowflakeId)))
 	}
-	if resp.DefaultConnectionSynapseId != nil {
-		d.Set("default_connection_synapse_id", fmt.Sprintf("%v", int(*resp.DefaultConnectionSynapseId)))
+	if apiResp.DefaultConnectionSynapseId != nil {
+		state.DefaultConnectionSynapseID = types.StringValue(fmt.Sprintf("%v", int(*apiResp.DefaultConnectionSynapseId)))
 	}
-	if resp.DefaultConnectionExasolId != nil {
-		d.Set("default_connection_exasol_id", fmt.Sprintf("%v", int(*resp.DefaultConnectionExasolId)))
+	if apiResp.DefaultConnectionExasolId != nil {
+		state.DefaultConnectionExasolID = types.StringValue(fmt.Sprintf("%v", int(*apiResp.DefaultConnectionExasolId)))
 	}
-	if resp.DefaultConnectionTeradataId != nil {
-		d.Set("default_connection_teradata_id", fmt.Sprintf("%v", int(*resp.DefaultConnectionTeradataId)))
+	if apiResp.DefaultConnectionTeradataId != nil {
+		state.DefaultConnectionTeradataID = types.StringValue(fmt.Sprintf("%v", int(*apiResp.DefaultConnectionTeradataId)))
 	}
-	if resp.DefaultFileStorageId != nil {
-		d.Set("default_file_storage_id", fmt.Sprintf("%v", int(*resp.DefaultFileStorageId)))
+	if apiResp.DefaultFileStorageId != nil {
+		state.DefaultFileStorageID = types.StringValue(fmt.Sprintf("%v", int(*apiResp.DefaultFileStorageId)))
 	}
-	if resp.ZendeskUrl != nil {
-		d.Set("zendesk_url", *resp.ZendeskUrl)
+	if apiResp.ZendeskUrl != nil {
+		state.ZendeskURL = types.StringValue(*apiResp.ZendeskUrl)
 	}
-	return nil
+
+	diags = resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(diags...)
 }
 
-// resourceMaintainerUpdate updates a maintainer using the Keboola Management API.
-func resourceMaintainerUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	client := m.(*Client)
-	id, err := strconv.Atoi(d.Id())
-	if err != nil {
-		return diag.FromErr(err)
+func (r *maintainerResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan maintainerResourceModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
+
+	id, err := strconv.Atoi(plan.ID.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error parsing maintainer ID",
+			fmt.Sprintf("Could not parse maintainer ID: %s", err),
+		)
+		return
+	}
+
 	body := management.UpdateAMaintainerRequest{}
-	if d.HasChange("name") {
-		name := d.Get("name").(string)
-		body.Name = &name
+	name := plan.Name.ValueString()
+	body.Name = &name
+
+	if !plan.DefaultConnectionRedshiftID.IsNull() {
+		val := plan.DefaultConnectionRedshiftID.ValueString()
+		body.DefaultConnectionRedshiftId = &val
 	}
-	if d.HasChange("default_connection_redshift_id") {
-		v := d.Get("default_connection_redshift_id").(string)
-		body.DefaultConnectionRedshiftId = &v
+	if !plan.DefaultConnectionSnowflakeID.IsNull() {
+		val := plan.DefaultConnectionSnowflakeID.ValueString()
+		body.DefaultConnectionSnowflakeId = &val
 	}
-	if d.HasChange("default_connection_snowflake_id") {
-		v := d.Get("default_connection_snowflake_id").(string)
-		body.DefaultConnectionSnowflakeId = &v
+	if !plan.DefaultConnectionSynapseID.IsNull() {
+		val := plan.DefaultConnectionSynapseID.ValueString()
+		body.DefaultConnectionSynapseId = &val
 	}
-	if d.HasChange("default_connection_synapse_id") {
-		v := d.Get("default_connection_synapse_id").(string)
-		body.DefaultConnectionSynapseId = &v
+	if !plan.DefaultConnectionExasolID.IsNull() {
+		val := plan.DefaultConnectionExasolID.ValueString()
+		body.DefaultConnectionExasolId = &val
 	}
-	if d.HasChange("default_connection_exasol_id") {
-		v := d.Get("default_connection_exasol_id").(string)
-		body.DefaultConnectionExasolId = &v
+	if !plan.DefaultConnectionTeradataID.IsNull() {
+		val := plan.DefaultConnectionTeradataID.ValueString()
+		body.DefaultConnectionTeradataId = &val
 	}
-	if d.HasChange("default_connection_teradata_id") {
-		v := d.Get("default_connection_teradata_id").(string)
-		body.DefaultConnectionTeradataId = &v
+	if !plan.DefaultFileStorageID.IsNull() {
+		val := plan.DefaultFileStorageID.ValueString()
+		body.DefaultFileStorageId = &val
 	}
-	if d.HasChange("default_file_storage_id") {
-		v := d.Get("default_file_storage_id").(string)
-		body.DefaultFileStorageId = &v
+	if !plan.ZendeskURL.IsNull() {
+		val := plan.ZendeskURL.ValueString()
+		body.ZendeskUrl = &val
 	}
-	if d.HasChange("zendesk_url") {
-		v := d.Get("zendesk_url").(string)
-		body.ZendeskUrl = &v
-	}
-	_, _, err = client.API.MaintainersAPI.UpdateAMaintainer(ctx, int32(id)).UpdateAMaintainerRequest(body).Execute()
+
+	_, _, err = r.client.API.MaintainersAPI.UpdateAMaintainer(ctx, int32(id)).UpdateAMaintainerRequest(body).Execute()
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError(
+			"Error updating maintainer",
+			fmt.Sprintf("Could not update maintainer ID %d: %s", id, err),
+		)
+		return
 	}
-	return resourceMaintainerRead(ctx, d, m)
+
+	diags = resp.State.Set(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
 }
 
-// resourceMaintainerDelete deletes a maintainer using the Keboola Management API.
-func resourceMaintainerDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	client := m.(*Client)
-	id, err := strconv.Atoi(d.Id())
-	if err != nil {
-		return diag.FromErr(err)
+func (r *maintainerResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state maintainerResourceModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
-	_, err = client.API.MaintainersAPI.DeleteAMaintainer(ctx, int32(id)).Execute()
+
+	id, err := strconv.Atoi(state.ID.ValueString())
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError(
+			"Error parsing maintainer ID",
+			fmt.Sprintf("Could not parse maintainer ID: %s", err),
+		)
+		return
 	}
-	d.SetId("")
-	return nil
+
+	_, err = r.client.API.MaintainersAPI.DeleteAMaintainer(ctx, int32(id)).Execute()
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error deleting maintainer",
+			fmt.Sprintf("Could not delete maintainer ID %d: %s", id, err),
+		)
+		return
+	}
 }
