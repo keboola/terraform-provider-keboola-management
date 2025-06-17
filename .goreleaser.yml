@@ -1,0 +1,3 @@
+release:
+  extra_files:
+    - glob: gpg-public-key.asc
