@@ -1,0 +1,92 @@
+version: '3'
+
+tasks:
+  default:
+    deps: [install]
+
+  install:
+    cmds:
+      - go install .
+
+  build:
+    desc: Build the Terraform provider
+    cmds:
+      - go build -o bin/terraform-provider-keboola-management .
+
+  generate-docs:
+    cmds:
+      - go generate ./...
+
+  lint:
+    cmds:
+      - golangci-lint run -c "./.golangci.yml"
+
+  fix:
+    cmds:
+      - echo "Running go mod tidy ..."
+      - go mod tidy
+      - echo "Running gofumpt ..."
+      - gofumpt -w ./internal
+      - echo "Running gci ..."
+      - gci write --skip-generated -s standard -s default -s "prefix(github.com/keboola/terraform-provider-keboola)" ./internal
+      - echo "Running golangci-lint ..."
+      - golangci-lint run --fix -c "./.golangci.yml"
+
+  test:
+    desc: Run provider tests with Manage API token from env
+    dotenv: ['.env.local']
+    cmds:
+      - go test -v -count=1 -parallel=4 ./keboola/...  
+
+  testacc:
+    cmds:
+      - TF_ACC=1 go test -count=1 -parallel=1 -timeout 10m -v ./...
+
+  test-install:
+    deps: [install]
+    cmds:
+      - terraform -chdir="./examples" plan
+
+  clean-examples-state:
+    cmds:
+      - rm -r ./examples/**/**/*tfstate* || true
+      - rm -r ./examples/**/**/.terraform.lock.hcl || true
+      - rm -rf ./examples/**/**/.terraform*
+
+  clean:
+    deps: [clean-examples-state]
+    cmds:
+      - rm -rf ./examples/**/**/.terraform* %  
+
+  plan-maintainer:
+    desc: Plan the maintainer example configuration
+    deps: [install]
+    dotenv: ['.env.local']
+    cmds:
+      - terraform -chdir="./examples/maintainer" init
+      - terraform -chdir="./examples/maintainer" plan
+
+  apply-maintainer:
+    desc: Apply the maintainer example configuration
+    deps: [install]
+    dotenv: ['.env.local']
+    cmds:
+      - terraform -chdir="./examples/maintainer" init
+      - terraform -chdir="./examples/maintainer" apply -auto-approve
+
+  show-maintainer:
+    desc: Show the current state of maintainer resources
+    deps: [install]
+    dotenv: ['.env.local']
+    cmds:
+      - terraform -chdir="./examples/maintainer" show
+      - terraform -chdir="./examples/maintainer" state list
+      - terraform -chdir="./examples/maintainer" state show 'keboola_maintainer.minimal'
+      - terraform -chdir="./examples/maintainer" state show 'keboola_maintainer.full'
+
+  destroy-maintainer:
+    desc: Destroy maintainer example resources
+    deps: [install]
+    dotenv: ['.env.local']
+    cmds:
+      - terraform -chdir="./examples/maintainer" destroy -auto-approve  

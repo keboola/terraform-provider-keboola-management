@@ -1,0 +1,25 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+.env.local
+
+# Output
+/build/
+/dist/
+
+# Go modules
+vendor/
+
+# Terraform
+.terraform/
+
+# Editor files
+*.swp
+*.swo
+.idea/
+.vscode/
+.DS_Store 
