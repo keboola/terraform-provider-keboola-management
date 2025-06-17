@@ -3,32 +3,25 @@ package keboola
 import (
 	"context"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/provider"
+	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	keboola "github.com/keboola/keboola-sdk-go/v2/pkg/keboola/management"
 )
 
-// Provider returns the terraform resource provider for Keboola.
-func Provider() *schema.Provider {
-	return &schema.Provider{
-		Schema: map[string]*schema.Schema{
-			"url": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "Keboola Management API URL.",
-			},
-			"token": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Sensitive:   true,
-				Description: "Keboola Management API Token.",
-			},
-		},
-		ResourcesMap: map[string]*schema.Resource{
-			"keboola_maintainer": resourceMaintainer(), // Register maintainer resource
-		},
-		ConfigureContextFunc: providerConfigure,
-	}
+// Ensure the implementation satisfies the expected interfaces
+var (
+	_ provider.Provider = &KeboolaProvider{}
+)
+
+// KeboolaProvider is the provider implementation.
+type KeboolaProvider struct{}
+
+// New creates a new provider instance
+func New() provider.Provider {
+	return &KeboolaProvider{}
 }
 
 // Client wraps the Keboola Management API client and exposes services.
@@ -36,23 +29,93 @@ type Client struct {
 	API *keboola.APIClient
 }
 
-// providerConfigure initializes the Keboola Management API client using the SDK.
-func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
-	url := d.Get("url").(string)
-	token := d.Get("token").(string)
+// KeboolaProviderModel describes the provider data model.
+type KeboolaProviderModel struct {
+	URL   types.String `tfsdk:"url"`
+	Token types.String `tfsdk:"token"`
+}
 
-	// Create a new configuration for the Management API client
-	config := keboola.NewConfiguration()
-	config.Host = url                                      // Set the Management API URL
-	config.AddDefaultHeader("X-KBC-ManageApiToken", token) // Set the API token as a default header
+func (p *KeboolaProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "keboola-management"
+	resp.Version = "0.1.0"
+}
 
-	// Create the Management API client with the configured settings
-	apiClient := keboola.NewAPIClient(config)
+func (p *KeboolaProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description:         "Interact with Keboola Management API.",
+		MarkdownDescription: "The Keboola Management provider allows Terraform to manage Keboola resources through the [Management API](https://keboolamanagementapi.docs.apiary.io/).",
+		Attributes: map[string]schema.Attribute{
+			"url": schema.StringAttribute{
+				Description:         "Keboola Management API URL.",
+				MarkdownDescription: "The URL of the Keboola Management API. For example: `https://connection.keboola.com/manage`",
+				Required:            true,
+			},
+			"token": schema.StringAttribute{
+				Description:         "Keboola Management API Token.",
+				MarkdownDescription: "The Management API token used for authentication. This is a sensitive value and should be handled securely.",
+				Required:            true,
+				Sensitive:           true,
+			},
+		},
+	}
+}
 
-	_, _, err := apiClient.TokenVerificationAPI.TokenVerification(ctx).Execute()
-	if err != nil {
-		return nil, diag.FromErr(err)
+func (p *KeboolaProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	var config KeboolaProviderModel
+	diags := req.Config.Get(ctx, &config)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
-	return &Client{API: apiClient}, nil
+	if config.URL.IsUnknown() {
+		resp.Diagnostics.AddError(
+			"Unable to create client",
+			"URL is required",
+		)
+		return
+	}
+
+	if config.Token.IsUnknown() {
+		resp.Diagnostics.AddError(
+			"Unable to create client",
+			"Token is required",
+		)
+		return
+	}
+
+	// Create a new configuration for the Management API client
+	apiConfig := keboola.NewConfiguration()
+	apiConfig.Host = config.URL.ValueString()
+	apiConfig.AddDefaultHeader("X-KBC-ManageApiToken", config.Token.ValueString())
+
+	// Create the Management API client with the configured settings
+	apiClient := keboola.NewAPIClient(apiConfig)
+
+	// Verify the token
+	_, _, err := apiClient.TokenVerificationAPI.TokenVerification(ctx).Execute()
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Unable to verify token",
+			"An unexpected error occurred when verifying the token: "+err.Error(),
+		)
+		return
+	}
+
+	client := &Client{
+		API: apiClient,
+	}
+
+	resp.DataSourceData = client
+	resp.ResourceData = client
+}
+
+func (p *KeboolaProvider) Resources(_ context.Context) []func() resource.Resource {
+	return []func() resource.Resource{
+		NewMaintainerResource,
+	}
+}
+
+func (p *KeboolaProvider) DataSources(_ context.Context) []func() datasource.DataSource {
+	return []func() datasource.DataSource{}
 }
