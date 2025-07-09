@@ -37,5 +37,5 @@ resource "keboola-management_project" "example" {
   organization_id             = keboola-management_organization.example.id # Reference to the organization resource
   type                        = "production"                               # or poc, demo
   default_backend             = "snowflake"                                # or redshift
-  data_retention_time_in_da3s = "7"                                        # optional, e.g. 7 days
+  data_retention_time_in_days = "7"                                        # optional, e.g. 7 days
 }
