@@ -1,4 +1,4 @@
-variable "api_url" {
+variable "url" {
   type        = string
   description = "URL of the Keboola Management API"
 }

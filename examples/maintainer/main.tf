@@ -1,24 +1,19 @@
 terraform {
   required_providers {
-    keboola = {
+    keboola-management = {
       source = "keboola/keboola-management"
+      version = "0.1.2"
     }
   }
 }
 
-# Configure the provider
-provider "keboola" {
-  api_url = var.api_url # URL of your Keboola Management API
-  token   = var.token   # Your Keboola Management API token
+provider "keboola-management" {
+  url   = var.url
+  token = var.token
 }
 
-# Example 1: Minimal maintainer configuration
-resource "keboola_maintainer" "minimal" {
-  name = "Example Maintainer"
-}
 
-# Example 2: Full maintainer configuration with all optional fields
-resource "keboola_maintainer" "full" {
+resource "keboola-management_maintainer" "full" {
   name                            = "Full Example Maintainer"
   default_connection_redshift_id  = "123"
   default_connection_snowflake_id = "456"
@@ -27,4 +22,20 @@ resource "keboola_maintainer" "full" {
   default_connection_teradata_id  = "102"
   default_file_storage_id         = "103"
   zendesk_url                     = "https://example.zendesk.com"
+}
+
+# Example: Organization resource
+resource "keboola-management_organization" "example" {
+  name          = "Example Organization"
+  maintainer_id = keboola-management_maintainer.full.id # Reference to the maintainer resource
+  # crm_id     = "optional-crm-id" # Uncomment and set if you want to specify a CRM ID
+}
+
+# Example: Project resource
+resource "keboola-management_project" "example" {
+  name                       = "Example Project"
+  organization_id            = keboola-management_organization.example.id # Reference to the organization resource
+  type                       = "production" # or poc, demo
+  default_backend            = "snowflake"  # or redshift
+  data_retention_time_in_da3s = "7"         # optional, e.g. 7 days
 }
