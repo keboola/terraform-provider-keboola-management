@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     keboola-management = {
-      source = "keboola/keboola-management"
+      source  = "keboola/keboola-management"
       version = "0.1.2"
     }
   }
@@ -33,9 +33,9 @@ resource "keboola-management_organization" "example" {
 
 # Example: Project resource
 resource "keboola-management_project" "example" {
-  name                       = "Example Project"
-  organization_id            = keboola-management_organization.example.id # Reference to the organization resource
-  type                       = "production" # or poc, demo
-  default_backend            = "snowflake"  # or redshift
-  data_retention_time_in_da3s = "7"         # optional, e.g. 7 days
+  name                        = "Example Project"
+  organization_id             = keboola-management_organization.example.id # Reference to the organization resource
+  type                        = "production"                               # or poc, demo
+  default_backend             = "snowflake"                                # or redshift
+  data_retention_time_in_da3s = "7"                                        # optional, e.g. 7 days
 }
