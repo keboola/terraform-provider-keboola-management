@@ -44,15 +44,15 @@ resource "keboola-management_project" "example" {
   data_retention_time_in_days = "7"                                        # optional, e.g. 7 days
 
   token {
-    description             = "Test Token"                     # Token description
-    can_manage_buckets      = true                             # Full permissions on tabular storage
-    can_read_all_file_uploads = true                           # Full permissions to files staging
-    can_purge_trash         = true                             # Allows permanently remove deleted configurations
-    expires_in              = 7200                               # Token lifetime in seconds
+    description               = "Test Token" # Token description
+    can_manage_buckets        = true         # Full permissions on tabular storage
+    can_read_all_file_uploads = true         # Full permissions to files staging
+    can_purge_trash           = true         # Allows permanently remove deleted configurations
+    expires_in                = 7200         # Token lifetime in seconds
     bucket_permissions = {
-      "in.c" = "string"                                      # Example bucket permission
+      "in.c" = "string" # Example bucket permission
     }
-    component_access = ["string"]                             # List of component IDs (as strings)
+    component_access = ["string"] # List of component IDs (as strings)
   }
 }
 
@@ -64,7 +64,7 @@ output "project_storage_token" {
 
 # Example: Pass the storage token to the keboola provider (keboola/keboola)
 provider "keboola" {
-  host   = var.url
+  host = var.url
 }
 
 # Now you can use the keboola provider for other resources

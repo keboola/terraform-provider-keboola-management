@@ -25,7 +25,22 @@ Manages a Keboola project.
 
 - `data_retention_time_in_days` (String) Data retention in days for Time Travel.
 - `default_backend` (String) Project default backend: snowflake or redshift; default is snowflake.
+- `token` (Block, Optional) Optional block to define the storage token properties for the project. (see [below for nested schema](#nestedblock--token))
 
 ### Read-Only
 
 - `id` (String) Project ID.
+- `storage_token` (String, Sensitive) Storage token created for the project. Sensitive, only available after creation. Not available after refresh/import.
+
+<a id="nestedblock--token"></a>
+### Nested Schema for `token`
+
+Optional:
+
+- `bucket_permissions` (Map of String) Map of bucket permissions, e.g., {"in.c": "main: read"}.
+- `can_manage_buckets` (Boolean) Token has full permissions on tabular storage.
+- `can_purge_trash` (Boolean) Allows permanently removing deleted configurations.
+- `can_read_all_file_uploads` (Boolean) Token has full permissions to files staging.
+- `component_access` (List of String) List of component IDs to grant access for component configurations.
+- `description` (String) Token description.
+- `expires_in` (Number) Token lifetime in seconds.
