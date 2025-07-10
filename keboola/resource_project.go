@@ -2,7 +2,9 @@ package keboola
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -10,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/keboola/keboola-sdk-go/v2/pkg/keboola/management"
 )
 
@@ -38,7 +41,20 @@ type projectResourceModel struct {
 	Type                    types.String `tfsdk:"type"`
 	DefaultBackend          types.String `tfsdk:"default_backend"`
 	DataRetentionTimeInDays types.String `tfsdk:"data_retention_time_in_days"`
+	StorageToken            types.String `tfsdk:"storage_token"`
+	Token                   *tokenModel  `tfsdk:"token"`
 	// Add more fields as needed for project creation and management
+}
+
+// tokenModel represents the nested token block for storage token creation.
+type tokenModel struct {
+	Description           types.String `tfsdk:"description"`
+	CanManageBuckets      types.Bool   `tfsdk:"can_manage_buckets"`
+	CanReadAllFileUploads types.Bool   `tfsdk:"can_read_all_file_uploads"`
+	CanPurgeTrash         types.Bool   `tfsdk:"can_purge_trash"`
+	ExpiresIn             types.Number `tfsdk:"expires_in"`
+	BucketPermissions     types.Map    `tfsdk:"bucket_permissions"`
+	ComponentAccess       types.List   `tfsdk:"component_access"`
 }
 
 // Configure adds the provider configured client to the resource.
@@ -87,6 +103,48 @@ func (r *projectResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				Optional:    true,
 			},
 			// Add more attributes as needed
+			"storage_token": schema.StringAttribute{
+				Description: "Storage token created for the project. Sensitive, only available after creation. Not available after refresh/import.",
+				Computed:    true,
+				Sensitive:   true,
+			},
+		},
+		Blocks: map[string]schema.Block{
+			"token": schema.SingleNestedBlock{
+				Description: "Optional block to define the storage token properties for the project.",
+				Attributes: map[string]schema.Attribute{
+					"description": schema.StringAttribute{
+						Description: "Token description.",
+						Optional:    true,
+					},
+					"can_manage_buckets": schema.BoolAttribute{
+						Description: "Token has full permissions on tabular storage.",
+						Optional:    true,
+					},
+					"can_read_all_file_uploads": schema.BoolAttribute{
+						Description: "Token has full permissions to files staging.",
+						Optional:    true,
+					},
+					"can_purge_trash": schema.BoolAttribute{
+						Description: "Allows permanently removing deleted configurations.",
+						Optional:    true,
+					},
+					"expires_in": schema.NumberAttribute{
+						Description: "Token lifetime in seconds.",
+						Optional:    true,
+					},
+					"bucket_permissions": schema.MapAttribute{
+						Description: "Map of bucket permissions, e.g., {\"in.c\": \"main: read\"}.",
+						Optional:    true,
+						ElementType: types.StringType,
+					},
+					"component_access": schema.ListAttribute{
+						Description: "List of component IDs to grant access for component configurations.",
+						Optional:    true,
+						ElementType: types.StringType,
+					},
+				},
+			},
 		},
 	}
 }
@@ -133,6 +191,68 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 	plan.ID = types.StringValue(fmt.Sprintf("%v", *apiResp.Id))
+	tokenBody := management.CreateStorageTokenRequest{
+		Description: plan.Token.Description.ValueString(),
+	}
+	if plan.Token != nil {
+		if !plan.Token.CanManageBuckets.IsNull() {
+			canManageBuckets := plan.Token.CanManageBuckets.ValueBool()
+			tokenBody.CanManageBuckets = &canManageBuckets
+		}
+		if !plan.Token.CanReadAllFileUploads.IsNull() {
+			canReadAllFileUploads := plan.Token.CanReadAllFileUploads.ValueBool()
+			tokenBody.CanReadAllFileUploads = &canReadAllFileUploads
+		}
+		if !plan.Token.CanPurgeTrash.IsNull() {
+			canPurgeTrash := plan.Token.CanPurgeTrash.ValueBool()
+			tokenBody.CanPurgeTrash = &canPurgeTrash
+		}
+		if !plan.Token.ExpiresIn.IsNull() {
+			// Convert Terraform number to float32 pointer
+			bigVal := plan.Token.ExpiresIn.ValueBigFloat()
+			f64, _ := bigVal.Float64()
+			converted := float32(f64)
+			tokenBody.ExpiresIn = &converted
+		}
+		if !plan.Token.BucketPermissions.IsNull() && !plan.Token.BucketPermissions.IsUnknown() {
+			var perms map[string]string
+			diags := plan.Token.BucketPermissions.ElementsAs(ctx, &perms, false)
+			resp.Diagnostics.Append(diags...)
+			if !resp.Diagnostics.HasError() {
+				permissions := management.NewCreateStorageTokenRequestBucketPermissions()
+				permissions.SetInC(perms["in.c"])
+				tokenBody.BucketPermissions = permissions
+			}
+		}
+		if !plan.Token.ComponentAccess.IsNull() && !plan.Token.ComponentAccess.IsUnknown() {
+			var access []string
+			diags := plan.Token.ComponentAccess.ElementsAs(ctx, &access, false)
+			resp.Diagnostics.Append(diags...)
+			if !resp.Diagnostics.HasError() {
+				ca := expandComponentAccessFromStrings(access)
+				tokenBody.ComponentAccess = &ca
+			}
+		}
+	}
+
+	// NOTE: The storage token is only available after creation and will NOT be available after refresh/import.
+	// This is a one-time secret. Document this clearly for users.
+	tokenResp, _, err := r.client.API.ProjectsAPI.CreateStorageToken(ctx, plan.ID.ValueString()).CreateStorageTokenRequest(tokenBody).Execute()
+	if err != nil {
+		resp.Diagnostics.AddError("Error creating storage token", "Could not create storage token: "+err.Error())
+		return
+	}
+
+	// Log the full token response for debugging (includes sensitive data!)
+	if tokenResp != nil {
+		if tokenJson, err := json.MarshalIndent(tokenResp, "", "  "); err == nil {
+			tflog.Info(ctx, "Storage token API response: "+string(tokenJson))
+		} else {
+			tflog.Info(ctx, "Could not marshal token response: "+err.Error())
+		}
+	}
+
+	plan.StorageToken = types.StringValue(*tokenResp.Token)
 
 	// Set state to fully populated data
 	diags = resp.State.Set(ctx, plan)
@@ -243,4 +363,31 @@ func (r *projectResource) Delete(ctx context.Context, req resource.DeleteRequest
 func (r *projectResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	// Import by ID
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
+// expandBucketPermissions converts map[string]types.String to map[string]string
+func expandBucketPermissions(input map[string]types.String) map[string]string {
+	result := make(map[string]string)
+	for k, v := range input {
+		if !v.IsNull() && !v.IsUnknown() {
+			result[k] = v.ValueString()
+		}
+	}
+	return result
+}
+
+// expandComponentAccess joins []types.String into a comma-separated string
+func expandComponentAccess(input []types.String) string {
+	var vals []string
+	for _, v := range input {
+		if !v.IsNull() && !v.IsUnknown() {
+			vals = append(vals, v.ValueString())
+		}
+	}
+	return strings.Join(vals, ",")
+}
+
+// expandComponentAccessFromStrings joins []string into a comma-separated string
+func expandComponentAccessFromStrings(input []string) string {
+	return strings.Join(input, ",")
 }
