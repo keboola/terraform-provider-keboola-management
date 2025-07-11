@@ -117,6 +117,11 @@ func (p *KeboolaProvider) Resources(_ context.Context) []func() resource.Resourc
 		NewProjectResource,           // Register the project resource
 		NewProjectInvitationResource, // Register the project invitation resource
 		NewProjectFeatureAddResource, // Register the project feature add resource
+		NewBackendResource,           // Register the backend resource
+		NewBackendBigQueryResource,   // Register the BigQuery backend resource
+		NewFileStorageS3Resource,
+		NewFileStorageGCSResource,
+		NewFileStorageAzureBlobResource,
 	}
 }
 
