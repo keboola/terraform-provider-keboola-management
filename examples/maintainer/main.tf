@@ -19,12 +19,8 @@ provider "keboola-management" {
 
 resource "keboola-management_maintainer" "full" {
   name                            = "Full Example Maintainer"
-  default_connection_redshift_id  = "123"
-  default_connection_snowflake_id = "456"
-  default_connection_synapse_id   = "789"
-  default_connection_exasol_id    = "101"
-  default_connection_teradata_id  = "102"
-  default_file_storage_id         = "103"
+  default_connection_snowflake_id = "1"
+  default_file_storage_id = "1"
   zendesk_url                     = "https://example.zendesk.com"
 }
 
@@ -40,7 +36,7 @@ resource "keboola-management_project" "example" {
   name                        = "Example Project2"
   organization_id             = keboola-management_organization.example.id # Reference to the organization resource
   type                        = "production"                               # or poc, demo
-  default_backend             = "snowflake"                                # or redshift
+  default_backend             = "bigquery"                                # or redshift
   data_retention_time_in_days = "7"                                        # optional, e.g. 7 days
 
   token {
@@ -102,3 +98,18 @@ provider "keboola" {
 #   # ... config ...
 # }
 
+resource "keboola_component_configuration" "generic_example" {
+  component_id = "ex-generic-v2"
+  name         = "My Generic Extractor Config"
+  description  = "Created by Terraform"
+
+  configuration = jsonencode({
+    parameters = {
+      # Add your extractor parameters here
+      # Example:
+      # api = {
+      #   baseUrl = "https://api.example.com"
+      # }
+    }
+  })
+}
