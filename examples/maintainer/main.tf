@@ -69,7 +69,7 @@ resource "keboola-management_project_feature_add" "show_vault" {
 
 resource "keboola-management_project_feature_add" "syrup_jobs_limit_10" {
   project_id = keboola-management_project.example.id
-  feature    = "syrup-jobs-liimt-10"
+  feature    = "syrup-jobs-limit-10"
 }
 
 resource "keboola-management_project_feature_add" "waii_integration" {
@@ -102,18 +102,3 @@ provider "keboola" {
 #   # ... config ...
 # }
 
-resource "keboola_component_configuration" "generic_example" {
-  component_id = "ex-generic-v2"
-  name         = "My Generic Extractor Config"
-  description  = "Created by Terraform"
-
-  configuration = jsonencode({
-    parameters = {
-      # Add your extractor parameters here
-      # Example:
-      # api = {
-      #   baseUrl = "https://api.example.com"
-      # }
-    }
-  })
-}
