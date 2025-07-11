@@ -113,8 +113,10 @@ func (p *KeboolaProvider) Configure(ctx context.Context, req provider.ConfigureR
 func (p *KeboolaProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewMaintainerResource,
-		NewOrganizationResource, // Register the organization resource
-		NewProjectResource,      // Register the project resource
+		NewOrganizationResource,      // Register the organization resource
+		NewProjectResource,           // Register the project resource
+		NewProjectInvitationResource, // Register the project invitation resource
+		NewProjectFeatureAddResource, // Register the project feature add resource
 	}
 }
 
