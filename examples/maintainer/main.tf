@@ -56,6 +56,36 @@ resource "keboola-management_project" "example" {
   }
 }
 
+# Example: Add project features
+resource "keboola-management_project_feature_add" "data_streams" {
+  project_id = keboola-management_project.example.id
+  feature    = "data-streams"
+}
+
+resource "keboola-management_project_feature_add" "show_vault" {
+  project_id = keboola-management_project.example.id
+  feature    = "show-vault"
+}
+
+resource "keboola-management_project_feature_add" "syrup_jobs_limit_10" {
+  project_id = keboola-management_project.example.id
+  feature    = "syrup-jobs-liimt-10"
+}
+
+resource "keboola-management_project_feature_add" "waii_integration" {
+  project_id = keboola-management_project.example.id
+  feature    = "waii-integration"
+}
+
+# Example: Project Invitation resource
+resource "keboola-management_project_invitation" "example" {
+  project_id = keboola-management_project.example.id
+  email      = "role_dev_go+cicd@keboola.com"
+  role       = "admin" # Change to the desired role
+  # expiration_seconds = 86400 # Optional: 1 day
+  reason = "CI/CD automation invitation"
+}
+
 # Output the storage token (sensitive, only available after creation)
 output "project_storage_token" {
   value     = keboola-management_project.example.storage_token
