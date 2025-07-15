@@ -17,9 +17,22 @@ vendor/
 # Terraform
 .terraform/
 
+# Terraform variable files
+terraform.tfvars
+*.tfvars
+
+# Terraform lock file
+.terraform.lock.hcl
+
 # Editor files
 *.swp
 *.swo
 .idea/
 .vscode/
 .DS_Store 
+
+# Ignore Terraform state files
+*.tfstate
+*.tfstate.backup
+**/*.tfstate
+**/*.tfstate.backup 
