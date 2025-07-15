@@ -113,8 +113,15 @@ func (p *KeboolaProvider) Configure(ctx context.Context, req provider.ConfigureR
 func (p *KeboolaProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewMaintainerResource,
-		NewOrganizationResource, // Register the organization resource
-		NewProjectResource,      // Register the project resource
+		NewOrganizationResource,         // Register the organization resource
+		NewProjectResource,              // Register the project resource
+		NewProjectInvitationResource,    // Register the project invitation resource
+		NewProjectFeatureResource,       // Register the project feature resource
+		NewBackendResource,              // Register the backend resource
+		NewBackendBigQueryResource,      // Register the BigQuery backend resource
+		NewFileStorageS3Resource,        // Register the S3 file storage resource
+		NewFileStorageGCSResource,       // Register the GCS file storage resource
+		NewFileStorageAzureBlobResource, // Register the Azure Blob file storage resource
 	}
 }
 

@@ -2,7 +2,6 @@ package keboola
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/keboola/keboola-sdk-go/v2/pkg/keboola/management"
 )
 
@@ -191,10 +189,13 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 	plan.ID = types.StringValue(fmt.Sprintf("%v", *apiResp.Id))
-	tokenBody := management.CreateStorageTokenRequest{
-		Description: plan.Token.Description.ValueString(),
-	}
+
+	// Only create a storage token if the optional token block is provided.
 	if plan.Token != nil {
+		var tokenBody management.CreateStorageTokenRequest
+		tokenBody = management.CreateStorageTokenRequest{
+			Description: plan.Token.Description.ValueString(),
+		}
 		if !plan.Token.CanManageBuckets.IsNull() {
 			canManageBuckets := plan.Token.CanManageBuckets.ValueBool()
 			tokenBody.CanManageBuckets = &canManageBuckets
@@ -233,26 +234,21 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 				tokenBody.ComponentAccess = &ca
 			}
 		}
-	}
 
-	// NOTE: The storage token is only available after creation and will NOT be available after refresh/import.
-	// This is a one-time secret. Document this clearly for users.
-	tokenResp, _, err := r.client.API.ProjectsAPI.CreateStorageToken(ctx, plan.ID.ValueString()).CreateStorageTokenRequest(tokenBody).Execute()
-	if err != nil {
-		resp.Diagnostics.AddError("Error creating storage token", "Could not create storage token: "+err.Error())
-		return
-	}
-
-	// Log the full token response for debugging (includes sensitive data!)
-	if tokenResp != nil {
-		if tokenJson, err := json.MarshalIndent(tokenResp, "", "  "); err == nil {
-			tflog.Info(ctx, "Storage token API response: "+string(tokenJson))
-		} else {
-			tflog.Info(ctx, "Could not marshal token response: "+err.Error())
+		// NOTE: The storage token is only available after creation and will NOT be available after refresh/import.
+		// This is a one-time secret. Document this clearly for users.
+		tokenResp, _, err := r.client.API.ProjectsAPI.CreateStorageToken(ctx, plan.ID.ValueString()).CreateStorageTokenRequest(tokenBody).Execute()
+		if err != nil {
+			resp.Diagnostics.AddError("Error creating storage token", "Could not create storage token: "+err.Error())
+			return
 		}
-	}
 
-	plan.StorageToken = types.StringValue(*tokenResp.Token)
+		plan.StorageToken = types.StringValue(*tokenResp.Token)
+	} else {
+		// If the token block is not provided, we must explicitly set storage_token to null.
+		// This avoids Terraform's 'unknown after apply' error for computed attributes.
+		plan.StorageToken = types.StringNull()
+	}
 
 	// Set state to fully populated data
 	diags = resp.State.Set(ctx, plan)
