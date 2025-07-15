@@ -57,22 +57,22 @@ resource "keboola-management_project" "example" {
 }
 
 # Example: Add project features
-resource "keboola-management_project_feature_add" "data_streams" {
+resource "keboola-management_project_feature" "data_streams" {
   project_id = keboola-management_project.example.id
   feature    = "data-streams"
 }
 
-resource "keboola-management_project_feature_add" "show_vault" {
+resource "keboola-management_project_feature" "show_vault" {
   project_id = keboola-management_project.example.id
   feature    = "show-vault"
 }
 
-resource "keboola-management_project_feature_add" "syrup_jobs_limit_10" {
+resource "keboola-management_project_feature" "syrup_jobs_limit_10" {
   project_id = keboola-management_project.example.id
   feature    = "syrup-jobs-liimt-10"
 }
 
-resource "keboola-management_project_feature_add" "waii_integration" {
+resource "keboola-management_project_feature" "waii_integration" {
   project_id = keboola-management_project.example.id
   feature    = "waii-integration"
 }

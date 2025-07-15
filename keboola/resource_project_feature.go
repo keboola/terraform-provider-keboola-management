@@ -15,39 +15,39 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces
 var (
-	_ resource.Resource                = &projectFeatureAddResource{}
-	_ resource.ResourceWithConfigure   = &projectFeatureAddResource{}
-	_ resource.ResourceWithImportState = &projectFeatureAddResource{}
+	_ resource.Resource                = &projectFeatureResource{}
+	_ resource.ResourceWithConfigure   = &projectFeatureResource{}
+	_ resource.ResourceWithImportState = &projectFeatureResource{}
 )
 
 // NewProjectFeatureAddResource registers the resource in the provider.
-func NewProjectFeatureAddResource() resource.Resource {
-	return &projectFeatureAddResource{}
+func NewProjectFeatureResource() resource.Resource {
+	return &projectFeatureResource{}
 }
 
 // projectFeatureAddResource implements the resource logic.
-type projectFeatureAddResource struct {
+type projectFeatureResource struct {
 	client *Client
 }
 
-type projectFeatureAddResourceModel struct {
+type projectFeatureResourceModel struct {
 	ID        types.String `tfsdk:"id"`
 	ProjectID types.String `tfsdk:"project_id"`
 	Feature   types.String `tfsdk:"feature"`
 }
 
-func (r *projectFeatureAddResource) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
+func (r *projectFeatureResource) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
 	r.client = req.ProviderData.(*Client)
 }
 
-func (r *projectFeatureAddResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_project_feature_add"
+func (r *projectFeatureResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_project_feature"
 }
 
-func (r *projectFeatureAddResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *projectFeatureResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Adds a feature to a Keboola project.",
 		Attributes: map[string]schema.Attribute{
@@ -70,8 +70,8 @@ func (r *projectFeatureAddResource) Schema(_ context.Context, _ resource.SchemaR
 	}
 }
 
-func (r *projectFeatureAddResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan projectFeatureAddResourceModel
+func (r *projectFeatureResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan projectFeatureResourceModel
 	diags := req.Plan.Get(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -100,8 +100,8 @@ func (r *projectFeatureAddResource) Create(ctx context.Context, req resource.Cre
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r *projectFeatureAddResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state projectFeatureAddResourceModel
+func (r *projectFeatureResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state projectFeatureResourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -139,8 +139,8 @@ func (r *projectFeatureAddResource) Read(ctx context.Context, req resource.ReadR
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r *projectFeatureAddResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state projectFeatureAddResourceModel
+func (r *projectFeatureResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state projectFeatureResourceModel
 	diags := req.State.Get(ctx, &state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -159,11 +159,11 @@ func (r *projectFeatureAddResource) Delete(ctx context.Context, req resource.Del
 }
 
 // Update is a no-op because features cannot be updated, only added or removed.
-func (r *projectFeatureAddResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+func (r *projectFeatureResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	// No update operation for project features.
 }
 
-func (r *projectFeatureAddResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+func (r *projectFeatureResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	// Import by ID (project_id:feature)
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }

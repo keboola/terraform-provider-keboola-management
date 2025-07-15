@@ -116,7 +116,7 @@ func (p *KeboolaProvider) Resources(_ context.Context) []func() resource.Resourc
 		NewOrganizationResource,      // Register the organization resource
 		NewProjectResource,           // Register the project resource
 		NewProjectInvitationResource, // Register the project invitation resource
-		NewProjectFeatureAddResource, // Register the project feature add resource
+		NewProjectFeatureResource,    // Register the project feature resource
 	}
 }
 
