@@ -17,5 +17,5 @@ The Keboola Management provider allows Terraform to manage Keboola resources thr
 
 ### Required
 
+- `hostname_suffix` (String) The hostname suffix for the Keboola Domain e.g `keboola.com`. The provider will construct the full URL as `https://connection.{hostname_suffix}`.
 - `token` (String, Sensitive) The Management API token used for authentication. This is a sensitive value and should be handled securely.
-- `url` (String) The URL of the Keboola Management API. For example: `https://connection.keboola.com/manage`
