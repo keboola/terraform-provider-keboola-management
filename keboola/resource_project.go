@@ -202,7 +202,7 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 		tokenBody = management.CreateStorageTokenRequest{
 			Description: plan.Token.Description.ValueString(),
 		}
-		// Always set boolean fields if not null (default is true)
+		// Set boolean fields when explicitly provided (defaults are handled by schema)
 		if !plan.Token.CanManageBuckets.IsNull() {
 			canManageBuckets := plan.Token.CanManageBuckets.ValueBool()
 			tokenBody.CanManageBuckets = &canManageBuckets
