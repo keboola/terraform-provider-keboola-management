@@ -7,6 +7,6 @@ terraform {
 }
 
 provider "keboola" {
-  url   = "https://connection.keboola.com"
-  token = "xxx"
+  hostname_suffix = "keboola.com"
+  token           = "xxx"
 }

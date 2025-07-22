@@ -7,8 +7,8 @@ terraform {
   }
 }
 
-variable "url" {
-  description = "Keboola Management API URL"
+variable "hostname_suffix" {
+  description = "Hostname suffix for the Keboola Management API (e.g., keboola.com)"
   type        = string
 }
 
@@ -18,8 +18,8 @@ variable "token" {
 }
 
 provider "keboola-management" {
-  url   = var.url
-  token = var.token
+  hostname_suffix = var.hostname_suffix
+  token           = var.token
 }
 
 # ------------------------------------------------------------------------------

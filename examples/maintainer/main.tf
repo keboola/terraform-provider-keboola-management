@@ -12,15 +12,15 @@ terraform {
 }
 
 provider "keboola-management" {
-  url   = var.url
-  token = var.token
+  hostname_suffix = var.hostname_suffix
+  token           = var.token
 }
 
 
 resource "keboola-management_maintainer" "full" {
   name                            = "Full Example Maintainer"
   default_connection_snowflake_id = "1"
-  default_file_storage_id = "1"
+  default_file_storage_id         = "1"
   zendesk_url                     = "https://example.zendesk.com"
 }
 
@@ -90,7 +90,7 @@ output "project_storage_token" {
 
 # Example: Pass the storage token to the keboola provider (keboola/keboola)
 provider "keboola" {
-  host = var.url
+  host = "https://connection.${var.hostname_suffix}"
 }
 
 # Now you can use the keboola provider for other resources

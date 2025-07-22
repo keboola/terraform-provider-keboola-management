@@ -1,2 +1,2 @@
-api_url = "https://connection.keboola.com"  # Replace with your Keboola Management API URL
-token   = "your-token-here"           # Replace with your Keboola Management API token 
+hostname_suffix = "keboola.com"  # Replace with your Keboola hostname suffix
+token          = "your-token-here"           # Replace with your Keboola Management API token 

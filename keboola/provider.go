@@ -31,8 +31,8 @@ type Client struct {
 
 // KeboolaProviderModel describes the provider data model.
 type KeboolaProviderModel struct {
-	URL   types.String `tfsdk:"url"`
-	Token types.String `tfsdk:"token"`
+	HostnameSuffix types.String `tfsdk:"hostname_suffix"`
+	Token          types.String `tfsdk:"token"`
 }
 
 func (p *KeboolaProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -45,9 +45,9 @@ func (p *KeboolaProvider) Schema(_ context.Context, _ provider.SchemaRequest, re
 		Description:         "Interact with Keboola Management API.",
 		MarkdownDescription: "The Keboola Management provider allows Terraform to manage Keboola resources through the [Management API](https://keboolamanagementapi.docs.apiary.io/).",
 		Attributes: map[string]schema.Attribute{
-			"url": schema.StringAttribute{
-				Description:         "Keboola Management API URL.",
-				MarkdownDescription: "The URL of the Keboola Management API. For example: `https://connection.keboola.com/manage`",
+			"hostname_suffix": schema.StringAttribute{
+				Description:         "The hostname suffix for the Keboola Domain. For example: `keboola.com`.",
+				MarkdownDescription: "The hostname suffix for the Keboola Domain e.g `keboola.com`. The provider will construct the full URL as `https://connection.{hostname_suffix}`.",
 				Required:            true,
 			},
 			"token": schema.StringAttribute{
@@ -68,10 +68,10 @@ func (p *KeboolaProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
-	if config.URL.IsUnknown() {
+	if config.HostnameSuffix.IsUnknown() {
 		resp.Diagnostics.AddError(
 			"Unable to create client",
-			"URL is required",
+			"Hostname suffix is required",
 		)
 		return
 	}
@@ -84,9 +84,12 @@ func (p *KeboolaProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
+	// Construct the Management API URL from the hostname suffix
+	apiURL := "connection." + config.HostnameSuffix.ValueString()
+
 	// Create a new configuration for the Management API client
 	apiConfig := keboola.NewConfiguration()
-	apiConfig.Host = config.URL.ValueString()
+	apiConfig.Host = apiURL
 	apiConfig.AddDefaultHeader("X-KBC-ManageApiToken", config.Token.ValueString())
 
 	// Create the Management API client with the configured settings

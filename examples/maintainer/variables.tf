@@ -1,6 +1,6 @@
-variable "url" {
+variable "hostname_suffix" {
   type        = string
-  description = "URL of the Keboola Management API"
+  description = "Hostname suffix for the Keboola Stacks (e.g., keboola.com)"
 }
 
 variable "token" {
