@@ -296,6 +296,9 @@ func (r *projectResource) Read(ctx context.Context, req resource.ReadRequest, re
 	}
 	// Add more fields as needed
 
+	// The storage token is only available after creation. After refresh/import, it must be explicitly set to null.
+	state.StorageToken = types.StringNull()
+
 	// Set refreshed state
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -332,6 +335,9 @@ func (r *projectResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
+	// After update, the storage token is not available anymore, so set it to null to avoid unknown value in state.
+	plan.StorageToken = types.StringNull()
+
 	// Fetch updated state
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
@@ -359,6 +365,9 @@ func (r *projectResource) Delete(ctx context.Context, req resource.DeleteRequest
 		)
 		return
 	}
+
+	// Explicitly remove storage_token from state after deletion, for security and correctness.
+	state.StorageToken = types.StringNull()
 }
 
 // ImportState imports an existing resource into Terraform.
