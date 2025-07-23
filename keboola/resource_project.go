@@ -7,7 +7,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -39,20 +38,6 @@ type projectResourceModel struct {
 	Type                    types.String `tfsdk:"type"`
 	DefaultBackend          types.String `tfsdk:"default_backend"`
 	DataRetentionTimeInDays types.String `tfsdk:"data_retention_time_in_days"`
-	StorageToken            types.String `tfsdk:"storage_token"`
-	Token                   *tokenModel  `tfsdk:"token"`
-	// Add more fields as needed for project creation and management
-}
-
-// tokenModel represents the nested token block for storage token creation.
-type tokenModel struct {
-	Description           types.String `tfsdk:"description"`
-	CanManageBuckets      types.Bool   `tfsdk:"can_manage_buckets"`
-	CanReadAllFileUploads types.Bool   `tfsdk:"can_read_all_file_uploads"`
-	CanPurgeTrash         types.Bool   `tfsdk:"can_purge_trash"`
-	ExpiresIn             types.Number `tfsdk:"expires_in"`
-	BucketPermissions     types.Map    `tfsdk:"bucket_permissions"`
-	ComponentAccess       types.List   `tfsdk:"component_access"`
 }
 
 // Configure adds the provider configured client to the resource.
@@ -99,55 +84,6 @@ func (r *projectResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			"data_retention_time_in_days": schema.StringAttribute{
 				Description: "Data retention in days for Time Travel.",
 				Optional:    true,
-			},
-			// Add more attributes as needed
-			"storage_token": schema.StringAttribute{
-				Description: "Storage token created for the project. Sensitive, only available after creation. Not available after refresh/import.",
-				Computed:    true,
-				Sensitive:   true,
-			},
-		},
-		Blocks: map[string]schema.Block{
-			"token": schema.SingleNestedBlock{
-				Description: "Optional block to define the storage token properties for the project.",
-				Attributes: map[string]schema.Attribute{
-					"description": schema.StringAttribute{
-						Description: "Token description.",
-						Optional:    true,
-					},
-					"can_manage_buckets": schema.BoolAttribute{
-						Description: "Token has full permissions on tabular storage. Defaults to true. Set to false to disable.",
-						Optional:    true,
-						Computed:    true,
-						Default:     booldefault.StaticBool(true),
-					},
-					"can_read_all_file_uploads": schema.BoolAttribute{
-						Description: "Token has full permissions to files staging. Defaults to true. Set to false to disable.",
-						Optional:    true,
-						Computed:    true,
-						Default:     booldefault.StaticBool(true),
-					},
-					"can_purge_trash": schema.BoolAttribute{
-						Description: "Allows permanently removing deleted configurations. Defaults to true. Set to false to disable.",
-						Optional:    true,
-						Computed:    true,
-						Default:     booldefault.StaticBool(true),
-					},
-					"expires_in": schema.NumberAttribute{
-						Description: "Token lifetime in seconds.",
-						Optional:    true,
-					},
-					"bucket_permissions": schema.MapAttribute{
-						Description: "Map of bucket permissions, e.g., {\"in.c\": \"main: read\"}.",
-						Optional:    true,
-						ElementType: types.StringType,
-					},
-					"component_access": schema.ListAttribute{
-						Description: "List of component IDs to grant access for component configurations.",
-						Optional:    true,
-						ElementType: types.StringType,
-					},
-				},
 			},
 		},
 	}
@@ -196,67 +132,6 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 	plan.ID = types.StringValue(fmt.Sprintf("%v", *apiResp.Id))
 
-	// Only create a storage token if the optional token block is provided.
-	if plan.Token != nil {
-		var tokenBody management.CreateStorageTokenRequest
-		tokenBody = management.CreateStorageTokenRequest{
-			Description: plan.Token.Description.ValueString(),
-		}
-		// Set boolean fields when explicitly provided (defaults are handled by schema)
-		if !plan.Token.CanManageBuckets.IsNull() {
-			canManageBuckets := plan.Token.CanManageBuckets.ValueBool()
-			tokenBody.CanManageBuckets = &canManageBuckets
-		}
-		if !plan.Token.CanReadAllFileUploads.IsNull() {
-			canReadAllFileUploads := plan.Token.CanReadAllFileUploads.ValueBool()
-			tokenBody.CanReadAllFileUploads = &canReadAllFileUploads
-		}
-		if !plan.Token.CanPurgeTrash.IsNull() {
-			canPurgeTrash := plan.Token.CanPurgeTrash.ValueBool()
-			tokenBody.CanPurgeTrash = &canPurgeTrash
-		}
-		if !plan.Token.ExpiresIn.IsNull() {
-			// Convert Terraform number to float32 pointer
-			bigVal := plan.Token.ExpiresIn.ValueBigFloat()
-			f64, _ := bigVal.Float64()
-			converted := float32(f64)
-			tokenBody.ExpiresIn = &converted
-		}
-		if !plan.Token.BucketPermissions.IsNull() && !plan.Token.BucketPermissions.IsUnknown() {
-			var perms map[string]string
-			diags := plan.Token.BucketPermissions.ElementsAs(ctx, &perms, false)
-			resp.Diagnostics.Append(diags...)
-			if !resp.Diagnostics.HasError() {
-				permissions := management.NewCreateStorageTokenRequestBucketPermissions()
-				permissions.SetInC(perms["in.c"])
-				tokenBody.BucketPermissions = permissions
-			}
-		}
-		if !plan.Token.ComponentAccess.IsNull() && !plan.Token.ComponentAccess.IsUnknown() {
-			var access []string
-			diags := plan.Token.ComponentAccess.ElementsAs(ctx, &access, false)
-			resp.Diagnostics.Append(diags...)
-			if !resp.Diagnostics.HasError() {
-				tokenBody.SetComponentAccess(access)
-			}
-		}
-
-		// NOTE: The storage token is only available after creation and will NOT be available after refresh/import.
-		// This is a one-time secret. Document this clearly for users.
-		tokenResp, _, err := r.client.API.ProjectsAPI.CreateStorageToken(ctx, plan.ID.ValueString()).CreateStorageTokenRequest(tokenBody).Execute()
-		if err != nil {
-			resp.Diagnostics.AddError("Error creating storage token", "Could not create storage token: "+err.Error())
-			return
-		}
-
-		plan.StorageToken = types.StringValue(*tokenResp.Token)
-	} else {
-		// If the token block is not provided, we must explicitly set storage_token to null.
-		// This avoids Terraform's 'unknown after apply' error for computed attributes.
-		plan.StorageToken = types.StringNull()
-	}
-
-	// Set state to fully populated data
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -294,7 +169,6 @@ func (r *projectResource) Read(ctx context.Context, req resource.ReadRequest, re
 	if apiResp.Name != nil {
 		state.Name = types.StringValue(*apiResp.Name)
 	}
-	// Add more fields as needed
 
 	// Set refreshed state
 	diags = resp.State.Set(ctx, &state)
@@ -359,6 +233,7 @@ func (r *projectResource) Delete(ctx context.Context, req resource.DeleteRequest
 		)
 		return
 	}
+
 }
 
 // ImportState imports an existing resource into Terraform.

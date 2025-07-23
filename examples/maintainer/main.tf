@@ -38,10 +38,14 @@ resource "keboola-management_project" "example" {
   type                        = "production"                               # or poc, demo
   default_backend             = "snowflake"                                # or redshift
   data_retention_time_in_days = "7"                                        # optional, e.g. 7 days
+}
 
-  token {
-    description = "Test Token" # Token description
-  }
+# Example: Project storage token (new pattern)
+resource "keboola-management_project_token" "example" {
+  project_id         = keboola-management_project.example.id
+  description        = "Test Token"                                    # Token description
+  can_manage_buckets = false                                           # Full permissions on tabular storage
+  component_access   = ["ex-generic-v2", "kds-team.app-custom-python"] # List of component IDs (as strings)
 }
 
 # Example: Add project features
@@ -76,13 +80,13 @@ resource "keboola-management_project_invitation" "example" {
 
 # Output the storage token (sensitive, only available after creation)
 output "project_storage_token" {
-  value     = keboola-management_project.example.storage_token
+  value     = keboola-management_project_token.example.id
   sensitive = true
 }
 
 # Example: Pass the storage token to the keboola provider (keboola/keboola)
 provider "keboola" {
-  host = "https://connection.${var.hostname_suffix}"
+  hostname_suffix = var.hostname_suffix
 }
 
 # Now you can use the keboola provider for other resources
