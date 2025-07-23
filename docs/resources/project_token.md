@@ -31,5 +31,5 @@ Manages a Keboola project storage token. The token is a one-time secret and cann
 
 ### Read-Only
 
-- `id` (String, Sensitive) Token resource ID (same as the token value, only available after creation).
-- `token` (String, Sensitive) The created storage token. Sensitive, only available after creation. Not available after refresh/import.
+- `id` (String) Token ID.
+- `token` (String, Sensitive) Token value.
