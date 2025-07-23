@@ -3,11 +3,11 @@ package keboola
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -116,16 +116,22 @@ func (r *projectResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 						Optional:    true,
 					},
 					"can_manage_buckets": schema.BoolAttribute{
-						Description: "Token has full permissions on tabular storage.",
+						Description: "Token has full permissions on tabular storage. Defaults to true. Set to false to disable.",
 						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(true),
 					},
 					"can_read_all_file_uploads": schema.BoolAttribute{
-						Description: "Token has full permissions to files staging.",
+						Description: "Token has full permissions to files staging. Defaults to true. Set to false to disable.",
 						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(true),
 					},
 					"can_purge_trash": schema.BoolAttribute{
-						Description: "Allows permanently removing deleted configurations.",
+						Description: "Allows permanently removing deleted configurations. Defaults to true. Set to false to disable.",
 						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(true),
 					},
 					"expires_in": schema.NumberAttribute{
 						Description: "Token lifetime in seconds.",
@@ -196,6 +202,7 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 		tokenBody = management.CreateStorageTokenRequest{
 			Description: plan.Token.Description.ValueString(),
 		}
+		// Set boolean fields when explicitly provided (defaults are handled by schema)
 		if !plan.Token.CanManageBuckets.IsNull() {
 			canManageBuckets := plan.Token.CanManageBuckets.ValueBool()
 			tokenBody.CanManageBuckets = &canManageBuckets
@@ -230,8 +237,7 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 			diags := plan.Token.ComponentAccess.ElementsAs(ctx, &access, false)
 			resp.Diagnostics.Append(diags...)
 			if !resp.Diagnostics.HasError() {
-				ca := expandComponentAccessFromStrings(access)
-				tokenBody.ComponentAccess = &ca
+				tokenBody.SetComponentAccess(access)
 			}
 		}
 
@@ -359,31 +365,4 @@ func (r *projectResource) Delete(ctx context.Context, req resource.DeleteRequest
 func (r *projectResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	// Import by ID
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
-}
-
-// expandBucketPermissions converts map[string]types.String to map[string]string
-func expandBucketPermissions(input map[string]types.String) map[string]string {
-	result := make(map[string]string)
-	for k, v := range input {
-		if !v.IsNull() && !v.IsUnknown() {
-			result[k] = v.ValueString()
-		}
-	}
-	return result
-}
-
-// expandComponentAccess joins []types.String into a comma-separated string
-func expandComponentAccess(input []types.String) string {
-	var vals []string
-	for _, v := range input {
-		if !v.IsNull() && !v.IsUnknown() {
-			vals = append(vals, v.ValueString())
-		}
-	}
-	return strings.Join(vals, ",")
-}
-
-// expandComponentAccessFromStrings joins []string into a comma-separated string
-func expandComponentAccessFromStrings(input []string) string {
-	return strings.Join(input, ",")
 }

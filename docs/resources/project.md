@@ -38,9 +38,9 @@ Manages a Keboola project.
 Optional:
 
 - `bucket_permissions` (Map of String) Map of bucket permissions, e.g., {"in.c": "main: read"}.
-- `can_manage_buckets` (Boolean) Token has full permissions on tabular storage.
-- `can_purge_trash` (Boolean) Allows permanently removing deleted configurations.
-- `can_read_all_file_uploads` (Boolean) Token has full permissions to files staging.
+- `can_manage_buckets` (Boolean) Token has full permissions on tabular storage. Defaults to true. Set to false to disable.
+- `can_purge_trash` (Boolean) Allows permanently removing deleted configurations. Defaults to true. Set to false to disable.
+- `can_read_all_file_uploads` (Boolean) Token has full permissions to files staging. Defaults to true. Set to false to disable.
 - `component_access` (List of String) List of component IDs to grant access for component configurations.
 - `description` (String) Token description.
 - `expires_in` (Number) Token lifetime in seconds.
