@@ -2,8 +2,6 @@ package keboola
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -48,6 +46,7 @@ type projectTokenResourceModel struct {
 	ExpiresIn             types.Number `tfsdk:"expires_in"`
 	BucketPermissions     types.Map    `tfsdk:"bucket_permissions"`
 	ComponentAccess       types.List   `tfsdk:"component_access"`
+	Token                 types.String `tfsdk:"token"`
 }
 
 // Configure adds the provider configured client to the resource.
@@ -69,9 +68,8 @@ func (r *projectTokenResource) Schema(_ context.Context, _ resource.SchemaReques
 		Description: "Manages a Keboola project storage token. The token is a one-time secret and cannot be read after creation.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
-				Description: "Token resource ID (same as the token value, only available after creation).",
+				Description: "Token ID.",
 				Computed:    true,
-				Sensitive:   true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
@@ -132,6 +130,15 @@ func (r *projectTokenResource) Schema(_ context.Context, _ resource.SchemaReques
 				ElementType: types.StringType,
 				PlanModifiers: []planmodifier.List{
 					listplanmodifier.RequiresReplace(),
+				},
+			},
+			"token": schema.StringAttribute{
+				Description: "Token value.",
+				Computed:    true,
+				Sensitive:   true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
 				},
 			},
 		},
@@ -196,7 +203,8 @@ func (r *projectTokenResource) Create(ctx context.Context, req resource.CreateRe
 		return
 	}
 
-	plan.ID = types.StringValue(*tokenResp.Token)
+	plan.ID = types.StringValue(*tokenResp.Id)
+	plan.Token = types.StringValue(*tokenResp.Token)
 
 	// Set state to fully populated data
 	diags = resp.State.Set(ctx, plan)
@@ -245,24 +253,15 @@ func (r *projectTokenResource) Delete(ctx context.Context, req resource.DeleteRe
 	}
 
 	// The token is required to authorize the deletion
-	token := state.ID.ValueString()
-	if token == "" {
+	tokenID := state.ID.ValueString()
+	if tokenID == "" {
 		tflog.Info(ctx, "Token not found in state, skipping deletion (likely after refresh/import)")
 		resp.State.RemoveResource(ctx)
 		return
 	}
 
-	tokenID, err := extractTokenID(token)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error extracting token ID",
-			"Could not extract numeric token ID from token string: "+err.Error(),
-		)
-		return
-	}
-
 	tflog.Info(ctx, "Creating authorized API client for token deletion")
-	client, err := sdk.NewAuthorizedAPI(ctx, r.client.API.GetConfig().Host, token)
+	client, err := sdk.NewAuthorizedAPI(ctx, r.client.API.GetConfig().Host, state.Token.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating authorized API client",
@@ -289,16 +288,4 @@ func (r *projectTokenResource) Delete(ctx context.Context, req resource.DeleteRe
 func (r *projectTokenResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	// Import by ID (token value, but not available after creation)
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
-}
-
-// Utility function to extract the numeric token ID from the token string.
-// The token format is typically: <prefix>-<numericID>-<randomString>
-// Example: 288-19178-vaKGO5zx2Aum9n1E8Tah44JALQChCMXErudqbDlu -> returns "19178"
-func extractTokenID(token string) (string, error) {
-	// Split the token by dashes
-	parts := strings.Split(token, "-")
-	if len(parts) < 2 {
-		return "", fmt.Errorf("invalid token format: %s", token)
-	}
-	return parts[1], nil
 }
