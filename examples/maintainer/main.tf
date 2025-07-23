@@ -80,7 +80,7 @@ resource "keboola-management_project_invitation" "example" {
 
 # Output the storage token (sensitive, only available after creation)
 output "project_storage_token" {
-  value     = keboola-management_project_token.example.token
+  value     = keboola-management_project_token.example.id
   sensitive = true
 }
 
