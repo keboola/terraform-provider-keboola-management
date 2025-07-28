@@ -2,6 +2,7 @@ package keboola
 
 import (
 	"context"
+	"os"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -9,6 +10,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	keboola "github.com/keboola/keboola-sdk-go/v2/pkg/keboola/management"
+)
+
+// Environment variable names for configuration
+const (
+	KbcHostnameSuffix = "KBC_HOSTNAME_SUFFIX"
+	KbcToken          = "KBC_MANAGE_TOKEN"
 )
 
 // Ensure the implementation satisfies the expected interfaces
@@ -46,14 +53,14 @@ func (p *KeboolaProvider) Schema(_ context.Context, _ provider.SchemaRequest, re
 		MarkdownDescription: "The Keboola Management provider allows Terraform to manage Keboola resources through the [Management API](https://keboolamanagementapi.docs.apiary.io/).",
 		Attributes: map[string]schema.Attribute{
 			"hostname_suffix": schema.StringAttribute{
-				Description:         "The hostname suffix for the Keboola Domain. For example: `keboola.com`.",
-				MarkdownDescription: "The hostname suffix for the Keboola Domain e.g `keboola.com`. The provider will construct the full URL as `https://connection.{hostname_suffix}`.",
-				Required:            true,
+				Description:         "The hostname suffix for the Keboola Domain. For example: `keboola.com`. Can also be set via KBC_HOSTNAME_SUFFIX environment variable.",
+				MarkdownDescription: "The hostname suffix for the Keboola Domain e.g `keboola.com`. The provider will construct the full URL as `https://connection.{hostname_suffix}`. Can also be set via KBC_HOSTNAME_SUFFIX environment variable.",
+				Optional:            true,
 			},
 			"token": schema.StringAttribute{
-				Description:         "Keboola Management API Token.",
-				MarkdownDescription: "The Management API token used for authentication. This is a sensitive value and should be handled securely.",
-				Required:            true,
+				Description:         "Keboola Management API Token. Can also be set via KBC_MANAGE_TOKEN environment variable.",
+				MarkdownDescription: "The Management API token used for authentication. This is a sensitive value and should be handled securely. Can also be set via KBC_MANAGE_TOKEN environment variable.",
+				Optional:            true,
 				Sensitive:           true,
 			},
 		},
@@ -68,29 +75,46 @@ func (p *KeboolaProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
-	if config.HostnameSuffix.IsUnknown() {
+	// Initialize variables to hold the final values
+	var hostnameSuffix, token string
+
+	// Check hostname suffix - use config if not unknown and not null, otherwise check environment
+	if config.HostnameSuffix.IsUnknown() || config.HostnameSuffix.IsNull() {
+		hostnameSuffix = os.Getenv(KbcHostnameSuffix) //nolint: forbidigo
+	} else {
+		hostnameSuffix = config.HostnameSuffix.ValueString()
+	}
+
+	// Check token - use config if not unknown and not null, otherwise check environment
+	if config.Token.IsUnknown() || config.Token.IsNull() {
+		token = os.Getenv(KbcToken) //nolint: forbidigo
+	} else {
+		token = config.Token.ValueString()
+	}
+	// Validate that we have the required values
+	if hostnameSuffix == "" {
 		resp.Diagnostics.AddError(
 			"Unable to create client",
-			"Hostname suffix is required",
+			"Hostname suffix is required. Set it in the provider configuration or via KBC_HOSTNAME_SUFFIX environment variable.",
 		)
 		return
 	}
 
-	if config.Token.IsUnknown() {
+	if token == "" {
 		resp.Diagnostics.AddError(
 			"Unable to create client",
-			"Token is required",
+			"Token is required. Set it in the provider configuration or via KBC_MANAGE_TOKEN environment variable.",
 		)
 		return
 	}
 
 	// Construct the Management API URL from the hostname suffix
-	apiURL := "connection." + config.HostnameSuffix.ValueString()
+	apiURL := "connection." + hostnameSuffix
 
 	// Create a new configuration for the Management API client
 	apiConfig := keboola.NewConfiguration()
 	apiConfig.Host = apiURL
-	apiConfig.AddDefaultHeader("X-KBC-ManageApiToken", config.Token.ValueString())
+	apiConfig.AddDefaultHeader("X-KBC-ManageApiToken", token)
 
 	// Create the Management API client with the configured settings
 	apiClient := keboola.NewAPIClient(apiConfig)
