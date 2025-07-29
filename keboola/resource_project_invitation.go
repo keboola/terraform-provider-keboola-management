@@ -3,6 +3,7 @@ package keboola
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -152,6 +153,14 @@ func (r *projectInvitationResource) Read(ctx context.Context, req resource.ReadR
 	// Call the API to get invitation details
 	apiResp, _, err := r.client.API.ProjectsAPI.ProjectInvitationDetail(ctx, state.ProjectID.ValueString(), state.ID.ValueString()).Execute()
 	if err != nil {
+		// Check if the error is a 404 (invitation not found)
+		// This can happen when the invitation was accepted or expired
+		if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "Not Found") {
+			// Remove the resource from state since it no longer exists
+			resp.State.RemoveResource(ctx)
+			return
+		}
+
 		resp.Diagnostics.AddError(
 			"Error reading project invitation",
 			"Could not read invitation: "+err.Error(),
