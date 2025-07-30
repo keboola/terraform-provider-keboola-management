@@ -157,6 +157,7 @@ func (r *projectInvitationResource) Read(ctx context.Context, req resource.ReadR
 		// This can happen when the invitation was accepted or expired
 		if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "Not Found") {
 			// Remove the resource from state since it no longer exists
+			// This handles the case where invitations are accepted and removed from the system
 			resp.State.RemoveResource(ctx)
 			return
 		}
@@ -207,6 +208,14 @@ func (r *projectInvitationResource) Delete(ctx context.Context, req resource.Del
 
 	_, err := r.client.API.ProjectsAPI.CancelProjectInvitation(ctx, state.ProjectID.ValueString(), state.ID.ValueString()).Execute()
 	if err != nil {
+		// Check if the error is a 404 (invitation not found)
+		// This can happen when the invitation was already accepted or expired
+		if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "Not Found") {
+			// The invitation no longer exists, which is fine for deletion
+			// Just log this as info and continue
+			return
+		}
+
 		resp.Diagnostics.AddError(
 			"Error deleting project invitation",
 			"Could not delete invitation: "+err.Error(),
