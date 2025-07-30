@@ -40,6 +40,7 @@ type projectInvitationResourceModel struct {
 	Role              types.String `tfsdk:"role"`
 	ExpirationSeconds types.Number `tfsdk:"expiration_seconds"`
 	Reason            types.String `tfsdk:"reason"`
+	Status            types.String `tfsdk:"status"` // Computed field to track invitation status
 }
 
 // Configure adds the provider configured client to the resource.
@@ -86,6 +87,10 @@ func (r *projectInvitationResource) Schema(_ context.Context, _ resource.SchemaR
 			"reason": schema.StringAttribute{
 				Description: "Reason for inviting user.",
 				Optional:    true,
+			},
+			"status": schema.StringAttribute{
+				Description: "Status of the invitation (e.g., 'pending', 'accepted', 'expired').",
+				Computed:    true,
 			},
 		},
 	}
@@ -135,6 +140,7 @@ func (r *projectInvitationResource) Create(ctx context.Context, req resource.Cre
 		return
 	}
 	plan.ID = types.StringValue(fmt.Sprintf("%v", *apiResp.Id))
+	plan.Status = types.StringValue("pending")
 
 	// Set state to fully populated data
 	diags = resp.State.Set(ctx, plan)
@@ -156,9 +162,11 @@ func (r *projectInvitationResource) Read(ctx context.Context, req resource.ReadR
 		// Check if the error is a 404 (invitation not found)
 		// This can happen when the invitation was accepted or expired
 		if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "Not Found") {
-			// Remove the resource from state since it no longer exists
-			// This handles the case where invitations are accepted and removed from the system
-			resp.State.RemoveResource(ctx)
+			// Mark the invitation as accepted and keep it in state
+			// This prevents Terraform from trying to recreate the invitation
+			state.Status = types.StringValue("accepted")
+			diags = resp.State.Set(ctx, &state)
+			resp.Diagnostics.Append(diags...)
 			return
 		}
 
@@ -184,6 +192,8 @@ func (r *projectInvitationResource) Read(ctx context.Context, req resource.ReadR
 	if apiResp.Reason != nil {
 		state.Reason = types.StringValue(*apiResp.Reason)
 	}
+	// Set status to pending if the invitation exists
+	state.Status = types.StringValue("pending")
 	// ExpirationSeconds is not directly available, so leave as is (API may provide Expires as a timestamp)
 	// If needed, parse apiResp.Expires and apiResp.Created to calculate seconds
 
@@ -194,7 +204,30 @@ func (r *projectInvitationResource) Read(ctx context.Context, req resource.ReadR
 
 // Update updates the resource and sets the updated Terraform state on success.
 func (r *projectInvitationResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	// Get the current state to check if the invitation was accepted
+	var state projectInvitationResourceModel
+	diags := req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// If the invitation was accepted, don't allow updates
+	if !state.Status.IsNull() && state.Status.ValueString() == "accepted" {
+		resp.Diagnostics.AddWarning(
+			"Cannot update accepted invitation",
+			"The invitation was accepted and can no longer be modified.",
+		)
+		// Keep the existing state
+		diags = resp.State.Set(ctx, &state)
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+
 	// Project invitations cannot be updated. This method is required by the interface.
+	// For now, we'll just keep the existing state
+	diags = resp.State.Set(ctx, &state)
+	resp.Diagnostics.Append(diags...)
 }
 
 // Delete deletes the resource and removes the Terraform state on success.
