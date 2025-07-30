@@ -29,3 +29,4 @@ Manages a Keboola project invitation.
 ### Read-Only
 
 - `id` (String) Project invitation ID.
+- `status` (String) Status of the invitation (e.g., 'pending', 'accepted', 'expired').
