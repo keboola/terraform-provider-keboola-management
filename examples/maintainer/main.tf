@@ -36,7 +36,7 @@ resource "keboola-management_project" "example" {
   name                        = "Example Project2"
   organization_id             = keboola-management_organization.example.id # Reference to the organization resource
   type                        = "production"                               # or poc, demo
-  default_backend             = "snowflake"                                # or redshift
+  default_backend             = "bigquery"                                # or redshift
   data_retention_time_in_days = "7"                                        # optional, e.g. 7 days
 }
 
@@ -84,29 +84,3 @@ output "project_storage_token" {
   sensitive = true
 }
 
-# Example: Pass the storage token to the keboola provider (keboola/keboola)
-provider "keboola" {
-  hostname_suffix = var.hostname_suffix
-}
-
-# Now you can use the keboola provider for other resources
-# resource "keboola_some_resource" "example" {
-#   # ... config ...
-# }
-
-
-resource "keboola_component_configuration" "generic_example" {
-  component_id = "ex-generic-v2"
-  name         = "My Generic Extractor Config"
-  description  = "Created by Terraform"
-
-  configuration = jsonencode({
-    parameters = {
-      # Add your extractor parameters here
-      # Example:
-      # api = {
-      #   baseUrl = "https://api.example.com"
-      # }
-    }
-  })
-}

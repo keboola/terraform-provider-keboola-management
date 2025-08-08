@@ -3,6 +3,8 @@ package keboola
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -115,15 +117,39 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 		body.DataRetentionTimeInDays = &days // pointer to string
 	}
 
-	apiResp, _, err := r.client.API.ProjectsAPI.AddAProject(ctx, plan.OrganizationID.ValueString()).AddAProjectRequest(body).Execute()
-	if err != nil {
+	var apiResp *management.ProjectModel
+	var httpResp *http.Response
+	var err error
+	for i := 0; i < 5; i++ {
+		apiResp, httpResp, err = r.client.API.ProjectsAPI.AddAProject(ctx, plan.OrganizationID.ValueString()).AddAProjectRequest(body).Execute()
+		if err == nil {
+			break
+		}
+
+		// Check if it's a 500 error and retry
+		if httpResp != nil && httpResp.StatusCode == http.StatusInternalServerError {
+			if i < 4 { // Don't sleep on the last attempt
+				time.Sleep(time.Duration(i+1) * time.Second) // Exponential backoff
+				continue
+			}
+		}
+		// For non-500 errors or after all retries, return the error
 		resp.Diagnostics.AddError(
 			"Error creating project",
 			"Could not create project, unexpected error: "+err.Error(),
 		)
 		return
 	}
-	if apiResp == nil || apiResp.Id == nil {
+
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error creating project",
+			"Could not create project after retries, unexpected error: "+err.Error(),
+		)
+		return
+	}
+
+	if apiResp.Id == nil {
 		resp.Diagnostics.AddError(
 			"Error creating project",
 			"API did not return project ID",
