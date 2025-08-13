@@ -3,6 +3,7 @@ package keboola
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/http"
 	"time"
 
@@ -129,7 +130,7 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 		// Check if it's a 500 error and retry
 		if httpResp != nil && httpResp.StatusCode == http.StatusInternalServerError {
 			if i < 4 { // Don't sleep on the last attempt
-				time.Sleep(time.Duration(i+1) * time.Second) // Exponential backoff
+				time.Sleep(time.Duration(math.Pow(2, float64(i))) * time.Second) // Exponential backoff
 				continue
 			}
 		}
