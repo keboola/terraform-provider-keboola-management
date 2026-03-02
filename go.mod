@@ -7,7 +7,7 @@ require (
 	github.com/hashicorp/terraform-plugin-go v0.28.0
 	github.com/hashicorp/terraform-plugin-log v0.9.0
 	github.com/hashicorp/terraform-plugin-testing v1.13.2
-	github.com/keboola/keboola-sdk-go/v2 v2.3.1-0.20250721075016-adb6291bd5d6
+	github.com/keboola/keboola-sdk-go/v2 v2.12.1-0.20260302114250-a0fa7b914ead
 	github.com/stretchr/testify v1.11.1
 )
 
@@ -177,7 +177,5 @@ require (
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/keboola/keboola-sdk-go/v2 => ../keboola-sdk-go
 
 tool github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs

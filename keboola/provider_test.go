@@ -103,14 +103,14 @@ func TestBackendSnowflakeResource_schema(t *testing.T) {
 	attrs := resp.Schema.Attributes
 
 	// Required attributes
-	for _, name := range []string{"host", "warehouse", "region", "owner", "technical_owner"} {
+	for _, name := range []string{"host", "warehouse", "region", "owner", "technical_owner", "username"} {
 		attr, ok := attrs[name]
 		assert.True(t, ok, "attribute %s should exist", name)
 		assert.True(t, attr.IsRequired(), "attribute %s should be required", name)
 	}
 
 	// Optional attributes
-	for _, name := range []string{"username", "technical_owner_contact_emails", "use_dynamic_backends", "use_network_policies", "use_sso", "edition"} {
+	for _, name := range []string{"technical_owner_contact_emails", "use_dynamic_backends", "use_network_policies", "use_sso", "edition"} {
 		attr, ok := attrs[name]
 		assert.True(t, ok, "attribute %s should exist", name)
 		assert.True(t, attr.IsOptional(), "attribute %s should be optional", name)

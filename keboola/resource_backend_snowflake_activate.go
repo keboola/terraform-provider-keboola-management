@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/keboola/keboola-sdk-go/v2/pkg/keboola/management"
 )
 
 // This resource only supports Create. Read, Update, and Delete are not supported by the API.
@@ -85,9 +86,13 @@ func (r *backendSnowflakeActivateResource) Create(ctx context.Context, req resou
 
 	apiResp, _, err := r.client.API.SUPERStorageBackendsManagementAPI.ActivateSnowflakeBackend(ctx, backendID).Execute()
 	if err != nil {
+		detail := err.Error()
+		if apiErr, ok := err.(*management.GenericOpenAPIError); ok {
+			detail = fmt.Sprintf("%s: %s", err.Error(), string(apiErr.Body()))
+		}
 		resp.Diagnostics.AddError(
 			"Error activating Snowflake backend",
-			fmt.Sprintf("Could not activate Snowflake backend '%s': %s", backendID, err.Error()),
+			fmt.Sprintf("Could not activate Snowflake backend '%s': %s", backendID, detail),
 		)
 		return
 	}

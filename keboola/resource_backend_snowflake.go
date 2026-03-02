@@ -107,7 +107,7 @@ func (r *backendSnowflakeResource) Schema(_ context.Context, _ resource.SchemaRe
 			},
 			"username": schema.StringAttribute{
 				Description: "Snowflake username.",
-				Optional:    true,
+				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -188,17 +188,14 @@ func (r *backendSnowflakeResource) Create(ctx context.Context, req resource.Crea
 		return
 	}
 
+	username := plan.Username.ValueString()
 	apiReq := management.CreateSnowflakeBackendWithCertRequest{
 		Host:           plan.Host.ValueString(),
 		Warehouse:      plan.Warehouse.ValueString(),
 		Region:         plan.Region.ValueString(),
 		Owner:          plan.Owner.ValueString(),
 		TechnicalOwner: plan.TechnicalOwner.ValueString(),
-	}
-
-	if !plan.Username.IsNull() && !plan.Username.IsUnknown() {
-		v := plan.Username.ValueString()
-		apiReq.Username = &v
+		Username:       &username,
 	}
 
 	if !plan.TechnicalOwnerContactEmails.IsNull() && !plan.TechnicalOwnerContactEmails.IsUnknown() {
@@ -233,9 +230,13 @@ func (r *backendSnowflakeResource) Create(ctx context.Context, req resource.Crea
 
 	apiResp, _, err := r.client.API.SUPERStorageBackendsManagementAPI.CreateSnowflakeBackendWithCert(ctx).CreateSnowflakeBackendWithCertRequest(apiReq).Execute()
 	if err != nil {
+		detail := err.Error()
+		if apiErr, ok := err.(*management.GenericOpenAPIError); ok {
+			detail = fmt.Sprintf("%s: %s", err.Error(), string(apiErr.Body()))
+		}
 		resp.Diagnostics.AddError(
 			"Error creating Snowflake backend",
-			fmt.Sprintf("Could not create Snowflake backend: %s", err.Error()),
+			fmt.Sprintf("Could not create Snowflake backend: %s", detail),
 		)
 		return
 	}
