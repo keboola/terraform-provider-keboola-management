@@ -14,8 +14,6 @@ import (
 	"github.com/keboola/keboola-sdk-go/v2/pkg/keboola/management"
 )
 
-// This resource only supports Create. Read, Update, and Delete are not supported by the API.
-
 var (
 	_ resource.Resource              = &backendSnowflakeResource{}
 	_ resource.ResourceWithConfigure = &backendSnowflakeResource{}
@@ -61,7 +59,7 @@ func (r *backendSnowflakeResource) Metadata(_ context.Context, req resource.Meta
 
 func (r *backendSnowflakeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Registers a Snowflake storage backend with RSA certificate authentication. Only Create is supported. Read, Update, and Delete are not supported by the API.",
+		Description: "Registers a Snowflake storage backend with RSA certificate authentication via the Keboola Management API. This is a create-only resource — Read, Update, and Delete require a super admin token and are not supported with the technical user token used for provisioning.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Description: "Backend ID.",
@@ -149,7 +147,7 @@ func (r *backendSnowflakeResource) Schema(_ context.Context, _ resource.SchemaRe
 				},
 			},
 			"sql_template": schema.StringAttribute{
-				Description: "SQL template returned by the API.",
+				Description: "SQL template returned by the API on create.",
 				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
@@ -170,7 +168,7 @@ func (r *backendSnowflakeResource) Schema(_ context.Context, _ resource.SchemaRe
 				},
 			},
 			"security_integration_key": schema.StringAttribute{
-				Description: "Security integration key returned by the API.",
+				Description: "Security integration key returned by the API on create.",
 				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
@@ -270,13 +268,20 @@ func (r *backendSnowflakeResource) Create(ctx context.Context, req resource.Crea
 }
 
 func (r *backendSnowflakeResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	resp.Diagnostics.AddWarning("Read not supported", "Snowflake backend does not support read operation. State will not be refreshed.")
+	// The GET /manage/storage-backend/{id} endpoint requires a super admin token.
+	// This resource is designed to be used with a technical user token which only
+	// has permission to create backends. State is preserved as-is from Create.
 }
 
 func (r *backendSnowflakeResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	resp.Diagnostics.AddWarning("Update not supported", "Snowflake backend does not support update operation. All fields require replacement.")
+	// The PATCH /manage/storage-backend/{id} endpoint does not support cert-based
+	// Snowflake backends. All input fields use RequiresReplace, so any change
+	// triggers a destroy + recreate cycle.
 }
 
 func (r *backendSnowflakeResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	resp.Diagnostics.AddWarning("Delete not supported", "Snowflake backend does not support delete operation. Resource will remain in state.")
+	// The DELETE /manage/storage-backend/{id} endpoint requires a super admin token.
+	// This resource is designed to be used with a technical user token which only
+	// has permission to create backends. The resource is removed from state only;
+	// the backend must be deleted manually via the API with a super admin token.
 }

@@ -3,12 +3,12 @@
 page_title: "keboola-management_backend_snowflake Resource - terraform-provider-keboola-management"
 subcategory: ""
 description: |-
-  Registers a Snowflake storage backend with RSA certificate authentication. Only Create is supported. Read, Update, and Delete are not supported by the API.
+  Registers a Snowflake storage backend with RSA certificate authentication via the Keboola Management API. Read and Update are not supported — all input fields are immutable after creation.
 ---
 
 # keboola-management_backend_snowflake (Resource)
 
-Registers a Snowflake storage backend with RSA certificate authentication. Only Create is supported. Read, Update, and Delete are not supported by the API.
+Registers a Snowflake storage backend with RSA certificate authentication via the Keboola Management API. Read and Update are not supported — all input fields are immutable after creation.
 
 
 
@@ -36,6 +36,6 @@ Registers a Snowflake storage backend with RSA certificate authentication. Only 
 
 - `id` (String) Backend ID.
 - `is_enabled` (Boolean) Whether the backend is enabled.
-- `security_integration_key` (String) Security integration key returned by the API.
-- `sql_template` (String) SQL template returned by the API.
+- `security_integration_key` (String) Security integration key returned by the API on create.
+- `sql_template` (String) SQL template returned by the API on create.
 - `user_public_key` (String) RSA public key for the Snowflake user. Use this to configure the Snowflake user.

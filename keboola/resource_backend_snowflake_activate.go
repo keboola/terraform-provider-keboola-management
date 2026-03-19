@@ -109,13 +109,15 @@ func (r *backendSnowflakeActivateResource) Create(ctx context.Context, req resou
 }
 
 func (r *backendSnowflakeActivateResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	resp.Diagnostics.AddWarning("Read not supported", "Snowflake backend activation does not support read operation. State will not be refreshed.")
+	// Activation is a one-time operation. There is no API endpoint to read
+	// activation status independently. State is preserved as-is from Create.
 }
 
 func (r *backendSnowflakeActivateResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	resp.Diagnostics.AddWarning("Update not supported", "Snowflake backend activation does not support update operation.")
+	// Activation is a one-time operation with no updatable fields.
 }
 
 func (r *backendSnowflakeActivateResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	resp.Diagnostics.AddWarning("Delete not supported", "Snowflake backend activation does not support delete operation. Resource will remain in state.")
+	// There is no deactivate endpoint. The resource is removed from state only.
+	// Deleting the parent backend_snowflake resource handles actual backend removal.
 }
