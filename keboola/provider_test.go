@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
@@ -88,3 +89,76 @@ resource "keboola_maintainer" "test" {
   name = "test"
 }
 `
+
+func TestBackendSnowflakeResource_schema(t *testing.T) {
+	ctx := context.Background()
+	r := NewBackendSnowflakeResource()
+
+	resp := &fwresource.SchemaResponse{}
+	r.Schema(ctx, fwresource.SchemaRequest{}, resp)
+
+	assert.False(t, resp.Diagnostics.HasError())
+	assert.NotNil(t, resp.Schema)
+
+	attrs := resp.Schema.Attributes
+
+	// Required attributes
+	for _, name := range []string{"host", "warehouse", "region", "owner", "technical_owner", "username"} {
+		attr, ok := attrs[name]
+		assert.True(t, ok, "attribute %s should exist", name)
+		assert.True(t, attr.IsRequired(), "attribute %s should be required", name)
+	}
+
+	// Optional attributes
+	for _, name := range []string{"technical_owner_contact_emails", "use_dynamic_backends", "use_network_policies", "use_sso", "edition"} {
+		attr, ok := attrs[name]
+		assert.True(t, ok, "attribute %s should exist", name)
+		assert.True(t, attr.IsOptional(), "attribute %s should be optional", name)
+	}
+
+	// Computed attributes
+	for _, name := range []string{"id", "sql_template", "is_enabled", "user_public_key", "security_integration_key"} {
+		attr, ok := attrs[name]
+		assert.True(t, ok, "attribute %s should exist", name)
+		assert.True(t, attr.IsComputed(), "attribute %s should be computed", name)
+	}
+}
+
+func TestBackendSnowflakeResource_metadata(t *testing.T) {
+	r := NewBackendSnowflakeResource()
+	resp := &fwresource.MetadataResponse{}
+	r.Metadata(context.Background(), fwresource.MetadataRequest{ProviderTypeName: "keboola-management"}, resp)
+	assert.Equal(t, "keboola-management_backend_snowflake", resp.TypeName)
+}
+
+func TestBackendSnowflakeActivateResource_schema(t *testing.T) {
+	ctx := context.Background()
+	r := NewBackendSnowflakeActivateResource()
+
+	resp := &fwresource.SchemaResponse{}
+	r.Schema(ctx, fwresource.SchemaRequest{}, resp)
+
+	assert.False(t, resp.Diagnostics.HasError())
+	assert.NotNil(t, resp.Schema)
+
+	attrs := resp.Schema.Attributes
+
+	// Required attributes
+	attr, ok := attrs["backend_id"]
+	assert.True(t, ok, "attribute backend_id should exist")
+	assert.True(t, attr.IsRequired(), "attribute backend_id should be required")
+
+	// Computed attributes
+	for _, name := range []string{"id", "is_enabled"} {
+		attr, ok := attrs[name]
+		assert.True(t, ok, "attribute %s should exist", name)
+		assert.True(t, attr.IsComputed(), "attribute %s should be computed", name)
+	}
+}
+
+func TestBackendSnowflakeActivateResource_metadata(t *testing.T) {
+	r := NewBackendSnowflakeActivateResource()
+	resp := &fwresource.MetadataResponse{}
+	r.Metadata(context.Background(), fwresource.MetadataRequest{ProviderTypeName: "keboola-management"}, resp)
+	assert.Equal(t, "keboola-management_backend_snowflake_activate", resp.TypeName)
+}

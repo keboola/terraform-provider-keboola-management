@@ -149,7 +149,9 @@ func (p *KeboolaProvider) Resources(_ context.Context) []func() resource.Resourc
 		NewBackendBigQueryResource,      // Register the BigQuery backend resource
 		NewFileStorageS3Resource,        // Register the S3 file storage resource
 		NewFileStorageGCSResource,       // Register the GCS file storage resource
-		NewFileStorageAzureBlobResource, // Register the Azure Blob file storage resource
+		NewFileStorageAzureBlobResource,        // Register the Azure Blob file storage resource
+		NewBackendSnowflakeResource,            // Register the Snowflake backend resource
+		NewBackendSnowflakeActivateResource,    // Register the Snowflake backend activate resource
 	}
 }
 

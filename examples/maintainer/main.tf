@@ -36,7 +36,7 @@ resource "keboola-management_project" "example" {
   name                        = "Example Project2"
   organization_id             = keboola-management_organization.example.id # Reference to the organization resource
   type                        = "production"                               # or poc, demo
-  default_backend             = "bigquery"                                # or redshift
+  default_backend             = "bigquery"                                 # or redshift
   data_retention_time_in_days = "7"                                        # optional, e.g. 7 days
 }
 
