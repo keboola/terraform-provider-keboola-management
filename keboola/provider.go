@@ -91,20 +91,12 @@ func (p *KeboolaProvider) Configure(ctx context.Context, req provider.ConfigureR
 	} else {
 		token = config.Token.ValueString()
 	}
-	// Validate that we have the required values
-	if hostnameSuffix == "" {
-		resp.Diagnostics.AddError(
-			"Unable to create client",
-			"Hostname suffix is required. Set it in the provider configuration or via KBC_HOSTNAME_SUFFIX environment variable.",
-		)
-		return
-	}
-
-	if token == "" {
-		resp.Diagnostics.AddError(
-			"Unable to create client",
-			"Token is required. Set it in the provider configuration or via KBC_MANAGE_TOKEN environment variable.",
-		)
+	// If hostname or token are not configured, skip client creation.
+	// This allows the provider to be instantiated without credentials
+	// (e.g., in for_each provider configurations where some instances
+	// don't need the provider). Resources will receive nil ProviderData
+	// and return early in their Configure methods.
+	if hostnameSuffix == "" || token == "" {
 		return
 	}
 
